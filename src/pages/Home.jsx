@@ -57,6 +57,7 @@ export default function Home() {
   const [fromSugg, setFromSugg]       = useState([]);
   const [toSugg, setToSugg]           = useState([]);
   const [activeInput, setActiveInput] = useState(null); // 'from' | 'to'
+  const [suggLoading, setSuggLoading] = useState(false);
 
   // Result
   const [result, setResult]           = useState(null);
@@ -350,7 +351,8 @@ export default function Home() {
 
   const suggestDebounce = useRef(null);
   const suggest = (val, setter) => {
-    if (!val || val.length < 2) { setter([]); return; }
+    if (!val || val.length < 2) { setter([]); setSuggLoading(false); return; }
+    setSuggLoading(true);
     clearTimeout(suggestDebounce.current);
     suggestDebounce.current = setTimeout(async () => {
       // D'abord cherche dans les nœuds locaux (transport connu)
@@ -376,6 +378,8 @@ export default function Home() {
         setter(merged);
       } catch {
         setter(local);
+      } finally {
+        setSuggLoading(false);
       }
     }, 300);
   };
@@ -631,6 +635,12 @@ export default function Home() {
                 const currentText = activeInput === 'from' ? fromText : toText;
 
                 if (currentText && currentText !== '📍 Ma position' && sugg.length === 0) {
+                  if (suggLoading) return (
+                    <div className="text-center py-8">
+                      <div className="w-6 h-6 border-2 border-nawiy-green/30 border-t-nawiy-green rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-gray-400 text-sm">Recherche en cours…</p>
+                    </div>
+                  );
                   return (
                     <div className="text-center py-8">
                       <p className="text-gray-400 text-sm">Aucun résultat pour "{currentText}"</p>
