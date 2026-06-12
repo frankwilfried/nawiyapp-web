@@ -112,11 +112,8 @@ export default function Home() {
     },
   });
 
-  // Charge les données statiques
+  // Réinitialise à chaque changement de ville
   useEffect(() => {
-    const g = buildGraph(selectedCity);
-    setGraph(g);
-    setNodes(g.nodes);
     setResult(null);
     setFromNode(null); setToNode(null);
     setFromText(''); setToText('');
@@ -144,56 +141,7 @@ export default function Home() {
     return () => { map.current?.remove(); map.current = null; };
   }, []);
 
-  // Marqueurs points focaux
-  useEffect(() => {
-    if (!map.current || nodes.length === 0) return;
-
-    // Attendre que la carte soit chargée
-    const addMarkers = () => {
-      // Supprime anciens marqueurs
-      routeMarkers.current.forEach(m => m.remove());
-      routeMarkers.current = [];
-
-      nodes.forEach(node => {
-        const el = document.createElement('div');
-        el.className = 'focal-marker';
-        el.style.cssText = `
-          width: 12px; height: 12px;
-          border-radius: 50%;
-          background: ${TYPE_COLORS[node.type] || '#6B7280'};
-          border: 2px solid white;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          cursor: pointer;
-          transition: transform 0.2s;
-        `;
-        el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.6)'; });
-        el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
-
-        const popup = new maplibregl.Popup({ offset: 12, closeButton: false, className: 'nawiy-popup' })
-          .setHTML(`<div style="font-family:Arial;font-size:13px;font-weight:600;color:#1A3C34">${node.name}</div>
-                    <div style="font-size:11px;color:#888;margin-top:2px">${node.type}</div>`);
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([node.lng, node.lat])
-          .setPopup(popup)
-          .addTo(map.current);
-
-        // Clic → sélectionne comme départ ou destination
-        el.addEventListener('click', () => {
-          if (!fromNode) {
-            setFromText(node.name); setFromNode(node);
-          } else if (!toNode && node.id !== fromNode.id) {
-            setToText(node.name); setToNode(node);
-          }
-        });
-
-        routeMarkers.current.push(marker);
-      });
-    };
-
-    if (map.current.loaded()) addMarkers();
-    else map.current.on('load', addMarkers);
-  }, [nodes, map.current]);
+  // (points focaux supprimés — données collectées via beta testeurs)
 
   // GPS utilisateur
   useEffect(() => {
@@ -317,36 +265,48 @@ export default function Home() {
   };
 
   // Recherche itinéraire
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setSearchError('');
     if (!fromNode || !toNode) { setSearchError('Sélectionne départ et destination'); return; }
+    if (!fromNode.lat || !toNode.lat) { setSearchError('Coordonnées manquantes, réessaie'); return; }
 
-    // Départ depuis GPS → utilise le nœud focal le plus proche comme vrai départ Dijkstra
-    const actualFromId = fromNode._walkFrom ? fromNode.id : fromNode.id;
-    const res = findPath(graph, actualFromId, toNode.id);
-    if (!res.found) {
-      setSearchError(res.error === 'NO_PATH' ? 'Aucun itinéraire trouvé' : 'Erreur de calcul');
-      return;
-    }
-
-    // Ajoute le temps de marche si départ GPS
-    const walkMin = fromNode._walkMin || 0;
-    const augmented = {
-      ...res,
-      total_duration_min: applyPeakMultiplier(res.total_duration_min) + walkMin,
-      total_price_fcfa: res.total_price_fcfa,
-      walkingIntro: fromNode._walkFrom ? {
-        fromLat:    fromNode._walkFrom.lat,
-        fromLng:    fromNode._walkFrom.lng,
-        toName:     fromNode.name,
-        minutes:    walkMin,
-        distanceKm: fromNode._walkDist,
-      } : null,
-    };
-    setResult(augmented);
     setSearchOpen(false);
     setSheetOpen(true);
-    drawRoute(res.path, augmented.walkingIntro);
+
+    // Tracé OSRM entre les 2 points
+    const waypoints = [
+      { lat: fromNode.lat, lng: fromNode.lng },
+      { lat: toNode.lat,   lng: toNode.lng   },
+    ];
+    const coords = await getRoadGeometry(waypoints, 'driving');
+
+    // Distance à vol d'oiseau en km
+    const dLat = toNode.lat - fromNode.lat;
+    const dLng = toNode.lng - fromNode.lng;
+    const distKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
+    const durationMin = Math.round(distKm / 0.5); // ~30 km/h en ville
+
+    const augmented = {
+      total_duration_min: durationMin,
+      total_price_fcfa:   null,
+      distance_km:        Math.round(distKm * 10) / 10,
+      path:               [],
+    };
+    setResult(augmented);
+
+    // Dessine le tracé
+    if (map.current) {
+      ['route-line','route-line-bg','route-walk'].forEach(id => { if (map.current.getLayer(id)) map.current.removeLayer(id); });
+      ['route','route-walk-src'].forEach(id => { if (map.current.getSource(id)) map.current.removeSource(id); });
+
+      const roadCoords = coords || waypoints.map(p => [p.lng, p.lat]);
+      map.current.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: roadCoords } } });
+      map.current.addLayer({ id: 'route-line-bg', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.6 } });
+      map.current.addLayer({ id: 'route-line',    type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#1D9E75', 'line-width': 5 } });
+
+      const bounds = roadCoords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(roadCoords[0], roadCoords[0]));
+      map.current.fitBounds(bounds, { padding: 80, duration: 800 });
+    }
   };
 
   // Charge le script Google Maps une seule fois
@@ -748,7 +708,7 @@ export default function Home() {
             <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 text-base">{fromText} → {toText}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{result.path.length} étape{result.path.length > 1 ? 's' : ''}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{result.distance_km ? `${result.distance_km} km` : ''}</p>
               </div>
               <button onClick={() => { setSheetOpen(false); setTaxiMode('idle'); }}
                 className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
@@ -762,12 +722,11 @@ export default function Home() {
                 <div className="bg-nawiy-light rounded-2xl p-3">
                   <div className="text-xs text-nawiy-dark font-semibold mb-2">🚌 Transport informel</div>
                   <div className="flex items-baseline gap-1 mb-0.5">
-                    <span className="text-xl font-bold text-nawiy-green">{result.total_duration_min}</span>
+                    <span className="text-xl font-bold text-nawiy-green">~{result.total_duration_min}</span>
                     <span className="text-xs text-gray-500">min</span>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-base font-bold text-nawiy-dark">{result.total_price_fcfa}</span>
-                    <span className="text-xs text-gray-500">FCFA</span>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {result.total_price_fcfa ? `${result.total_price_fcfa} FCFA` : 'Prix : données en cours'}
                   </div>
                   <button onClick={shareWhatsApp}
                     className="mt-2 w-full bg-white text-green-600 text-xs font-medium py-1.5 rounded-xl border border-green-200 hover:bg-green-50 transition">
