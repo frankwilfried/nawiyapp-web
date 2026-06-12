@@ -349,39 +349,75 @@ export default function Home() {
     drawRoute(res.path, augmented.walkingIntro);
   };
 
+  // Charge le script Google Maps une seule fois
+  const googleLoaded = useRef(false);
+  useEffect(() => {
+    if (googleLoaded.current || window.google) return;
+    googleLoaded.current = true;
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}&libraries=places&language=fr`;
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
+
   const suggestDebounce = useRef(null);
   const suggest = (val, setter) => {
     if (!val || val.length < 2) { setter([]); setSuggLoading(false); return; }
     setSuggLoading(true);
     clearTimeout(suggestDebounce.current);
-    suggestDebounce.current = setTimeout(async () => {
-      // D'abord cherche dans les nœuds locaux (transport connu)
+    suggestDebounce.current = setTimeout(() => {
+      // D'abord les nœuds locaux (transport connu)
       const q = val.toLowerCase();
       const local = nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 3);
 
-      // Puis Nominatim pour les lieux OSM
-      try {
-        const city = selectedCity === 'yaounde' ? 'Yaoundé' : 'Douala';
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ' ' + city + ' Cameroun')}&format=json&limit=5&countrycodes=cm&addressdetails=1`;
-        const res = await fetch(url, { headers: { 'Accept-Language': 'fr' } });
-        const data = await res.json();
-        const osm = data.map(p => ({
-          id:   'osm_' + p.osm_id,
-          name: p.display_name.split(',').slice(0,2).join(', '),
-          lat:  parseFloat(p.lat),
-          lng:  parseFloat(p.lon),
-          type: 'osm',
-        }));
-        // Fusionne : nœuds locaux en premier (ils ont les données transport)
-        const seen = new Set(local.map(n => n.name.toLowerCase()));
-        const merged = [...local, ...osm.filter(o => !seen.has(o.name.toLowerCase()))].slice(0, 7);
-        setter(merged);
-      } catch {
+      // Puis Google Places
+      if (!window.google?.maps?.places) {
         setter(local);
-      } finally {
         setSuggLoading(false);
+        return;
       }
+      const center = selectedCity === 'yaounde'
+        ? new window.google.maps.LatLng(3.848, 11.502)
+        : new window.google.maps.LatLng(4.051, 9.768);
+
+      const svc = new window.google.maps.places.AutocompleteService();
+      svc.getPlacePredictions({
+        input: val,
+        location: center,
+        radius: 30000,
+        componentRestrictions: { country: 'cm' },
+        language: 'fr',
+      }, (predictions, status) => {
+        if (status !== 'OK' || !predictions) { setter(local); setSuggLoading(false); return; }
+        const google = predictions.map(p => ({
+          id:        'gp_' + p.place_id,
+          name:      p.structured_formatting.main_text,
+          subtitle:  p.structured_formatting.secondary_text,
+          place_id:  p.place_id,
+          lat:       null,
+          lng:       null,
+          type:      'lieu',
+        }));
+        const seen = new Set(local.map(n => n.name.toLowerCase()));
+        const merged = [...local, ...google.filter(g => !seen.has(g.name.toLowerCase()))].slice(0, 7);
+        setter(merged);
+        setSuggLoading(false);
+      });
     }, 300);
+  };
+
+  // Résoudre les coordonnées d'un lieu Google Places
+  const resolvePlaceCoords = (node, onResolved) => {
+    if (node.lat !== null || !node.place_id) { onResolved(node); return; }
+    const mapDiv = document.createElement('div');
+    const svc = new window.google.maps.places.PlacesService(mapDiv);
+    svc.getDetails({ placeId: node.place_id, fields: ['geometry'] }, (place, status) => {
+      if (status === 'OK' && place.geometry) {
+        onResolved({ ...node, lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
+      } else {
+        onResolved(node);
+      }
+    });
   };
 
   const clearRoute = () => {
@@ -658,18 +694,20 @@ export default function Home() {
                       {sugg.map(n => (
                         <button key={n.id}
                           onClick={() => {
-                            if (activeInput === 'from') { setFromText(n.name); setFromNode(n); setFromSugg([]); setActiveInput('to'); }
-                            else { setToText(n.name); setToNode(n); setToSugg([]); }
+                            resolvePlaceCoords(n, resolved => {
+                              if (activeInput === 'from') { setFromText(resolved.name); setFromNode(resolved); setFromSugg([]); setActiveInput('to'); }
+                              else { setToText(resolved.name); setToNode(resolved); setToSugg([]); }
+                            });
                           }}
                           className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition"
                         >
                           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: TYPE_COLORS[n.type] + '20' }}>
-                            <div className="w-3 h-3 rounded-full" style={{ background: TYPE_COLORS[n.type] }} />
+                            style={{ background: (TYPE_COLORS[n.type] || '#6B7280') + '20' }}>
+                            <div className="w-3 h-3 rounded-full" style={{ background: TYPE_COLORS[n.type] || '#6B7280' }} />
                           </div>
                           <div className="text-left">
                             <div className="text-sm font-medium text-gray-800">{n.name}</div>
-                            <div className="text-xs text-gray-400 capitalize">{n.type}</div>
+                            <div className="text-xs text-gray-400">{n.subtitle || n.type}</div>
                           </div>
                         </button>
                       ))}
