@@ -348,10 +348,36 @@ export default function Home() {
     drawRoute(res.path, augmented.walkingIntro);
   };
 
+  const suggestDebounce = useRef(null);
   const suggest = (val, setter) => {
-    if (!val || val.length < 1) { setter([]); return; }
-    const q = val.toLowerCase();
-    setter(nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 6));
+    if (!val || val.length < 2) { setter([]); return; }
+    clearTimeout(suggestDebounce.current);
+    suggestDebounce.current = setTimeout(async () => {
+      // D'abord cherche dans les nœuds locaux (transport connu)
+      const q = val.toLowerCase();
+      const local = nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 3);
+
+      // Puis Nominatim pour les lieux OSM
+      try {
+        const city = selectedCity === 'yaounde' ? 'Yaoundé' : 'Douala';
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ' ' + city + ' Cameroun')}&format=json&limit=5&countrycodes=cm&addressdetails=1`;
+        const res = await fetch(url, { headers: { 'Accept-Language': 'fr' } });
+        const data = await res.json();
+        const osm = data.map(p => ({
+          id:   'osm_' + p.osm_id,
+          name: p.display_name.split(',').slice(0,2).join(', '),
+          lat:  parseFloat(p.lat),
+          lng:  parseFloat(p.lon),
+          type: 'osm',
+        }));
+        // Fusionne : nœuds locaux en premier (ils ont les données transport)
+        const seen = new Set(local.map(n => n.name.toLowerCase()));
+        const merged = [...local, ...osm.filter(o => !seen.has(o.name.toLowerCase()))].slice(0, 7);
+        setter(merged);
+      } catch {
+        setter(local);
+      }
+    }, 300);
   };
 
   const clearRoute = () => {
