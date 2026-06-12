@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { crowdsourceApi } from '../api/crowdsource.api';
 import { STATIC_FOCAL_POINTS } from '../lib/staticData';
 import { useAuthStore } from '../store/authStore';
@@ -25,6 +26,7 @@ const STEP = { SETUP: 'setup', RECORDING: 'recording', DONE: 'done' };
 
 export default function RecordRoute() {
   const { isAuthenticated, user } = useAuthStore();
+  const navigate = useNavigate();
 
   // Config
   const [city, setCity]           = useState('douala');
@@ -185,7 +187,7 @@ export default function RecordRoute() {
             className="w-full bg-nawiy-green text-white rounded-xl py-3 font-semibold hover:bg-nawiy-dark transition mb-3">
             Enregistrer un autre trajet
           </button>
-          <a href="/" className="block text-sm text-gray-400 hover:underline">← Retour à la carte</a>
+          <button onClick={() => navigate('/')} className="block text-sm text-gray-400 hover:underline">← Retour à la carte</button>
         </motion.div>
       </div>
     );
@@ -259,7 +261,7 @@ export default function RecordRoute() {
       {/* Header */}
       <div className="bg-nawiy-dark text-white px-4 pt-12 pb-5">
         <div className="flex items-center gap-3 mb-1">
-          <a href="/driver" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm">←</a>
+          <button onClick={() => navigate('/driver')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition active:scale-95" aria-label="Retour">←</button>
           <div>
             <h1 className="font-bold text-xl">Enregistrer un trajet</h1>
             <p className="text-green-300 text-xs">Aide à construire la carte NawiyApp</p>

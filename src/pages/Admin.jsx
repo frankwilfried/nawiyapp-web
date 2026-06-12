@@ -90,7 +90,7 @@ export default function Admin() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-nawiy-dark text-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a href="/" className="text-white/70 hover:text-white">←</a>
+          <button onClick={() => navigate('/')} className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition active:scale-95" aria-label="Retour">←</button>
           <h1 className="font-bold">⚙️ Administration</h1>
         </div>
         <span className="text-sm text-white/60">{user?.email}</span>

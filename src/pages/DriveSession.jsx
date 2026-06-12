@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { sessionApi } from '../api/session.api';
 import { useAuthStore } from '../store/authStore';
 
@@ -17,6 +18,7 @@ const QUICK_PRICES = [100, 150, 200, 300, 500];
 
 export default function DriveSession() {
   const { isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
 
   const [city, setCity]           = useState('douala');
   const [transport, setTransport] = useState('taxi_collectif');
@@ -148,7 +150,7 @@ export default function DriveSession() {
     <div className="min-h-screen bg-nawiy-light">
       <div className="bg-nawiy-dark text-white px-4 pt-12 pb-5">
         <div className="flex items-center gap-3">
-          <a href="/driver" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">←</a>
+          <button onClick={() => navigate('/driver')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition active:scale-95" aria-label="Retour">←</button>
           <div>
             <h1 className="font-bold text-xl">Mode conduite</h1>
             <p className="text-green-300 text-xs">+ pour faire monter · × pour faire descendre</p>

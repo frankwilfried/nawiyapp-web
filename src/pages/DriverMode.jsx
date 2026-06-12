@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { graphApi } from '../api/graph.api';
 import { driverRoutesApi } from '../api/driverRoutes.api';
 import { useAuthStore } from '../store/authStore';
@@ -12,6 +13,7 @@ const TRANSPORTS = [
 
 export default function DriverMode() {
   const { isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     city_id: '', from_name: '', to_name: '',
     transport: 'taxi_collectif', duration_min: '', price_fcfa: ''
@@ -55,7 +57,7 @@ export default function DriverMode() {
           >
             Soumettre un autre trajet
           </button>
-          <a href="/" className="block mt-3 text-sm text-gray-400 hover:underline">← Retour à la carte</a>
+          <button onClick={() => navigate('/')} className="block mt-3 text-sm text-gray-400 hover:underline mx-auto">← Retour à la carte</button>
         </div>
       </div>
     );
@@ -64,7 +66,7 @@ export default function DriverMode() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-nawiy-dark text-white px-4 py-3 flex items-center gap-3">
-        <a href="/" className="text-white/70 hover:text-white">←</a>
+        <button onClick={() => navigate('/')} className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition active:scale-95" aria-label="Retour">←</button>
         <h1 className="font-bold">🚕 Mode Chauffeur</h1>
       </header>
 

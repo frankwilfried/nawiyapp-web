@@ -53,7 +53,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          <a href="/" className="text-nawiy-green hover:underline">← Retour à la carte</a>
+          <button onClick={() => navigate('/')} className="text-nawiy-green hover:underline">← Retour à la carte</button>
         </p>
       </div>
     </div>

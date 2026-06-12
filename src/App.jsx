@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Home          from './pages/Home';
 import DriverMode    from './pages/DriverMode';
 import Admin         from './pages/Admin';
@@ -8,19 +8,32 @@ import TaxiDriver    from './pages/TaxiDriver';
 import RecordRoute      from './pages/RecordRoute';
 import DriveSession     from './pages/DriveSession';
 import PassengerRecord  from './pages/PassengerRecord';
+import BottomNav        from './components/BottomNav';
+
+const BOTTOM_NAV_PATHS = ['/', '/driver'];
+
+function Layout() {
+  const { pathname } = useLocation();
+  const showNav = BOTTOM_NAV_PATHS.includes(pathname);
+
+  return (
+    <>
+      <Routes>
+        <Route path="/"              element={<Home />} />
+        <Route path="/driver"        element={<DriverMode />} />
+        <Route path="/admin"         element={<Admin />} />
+        <Route path="/login"         element={<Login />} />
+        <Route path="/taxi"          element={<TaxiPassenger />} />
+        <Route path="/taxi/driver"   element={<TaxiDriver />} />
+        <Route path="/record-route"  element={<RecordRoute />} />
+        <Route path="/drive"         element={<DriveSession />} />
+        <Route path="/record-trip"   element={<PassengerRecord />} />
+      </Routes>
+      {showNav && <BottomNav />}
+    </>
+  );
+}
 
 export default function App() {
-  return (
-    <Routes>
-      <Route path="/"              element={<Home />} />
-      <Route path="/driver"        element={<DriverMode />} />
-      <Route path="/admin"         element={<Admin />} />
-      <Route path="/login"         element={<Login />} />
-      <Route path="/taxi"          element={<TaxiPassenger />} />
-      <Route path="/taxi/driver"   element={<TaxiDriver />} />
-      <Route path="/record-route"    element={<RecordRoute />} />
-      <Route path="/drive"           element={<DriveSession />} />
-      <Route path="/record-trip"     element={<PassengerRecord />} />
-    </Routes>
-  );
+  return <Layout />;
 }
