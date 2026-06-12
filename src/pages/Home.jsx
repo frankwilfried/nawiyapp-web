@@ -442,21 +442,6 @@ export default function Home() {
       <div className="fixed top-0 left-0 right-0 z-20 p-3 pointer-events-none">
         <div className="pointer-events-auto">
 
-          {/* Sélecteur de ville */}
-          <div className="flex justify-center mb-2">
-            <div className="bg-white/90 backdrop-blur rounded-full shadow-lg flex p-1 gap-1">
-              {['douala','yaounde'].map(c => (
-                <button key={c}
-                  onClick={() => { setCity(c); clearRoute(); }}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
-                    ${selectedCity === c ? 'bg-nawiy-green text-white shadow' : 'text-gray-500 hover:text-gray-800'}`}
-                >
-                  {c === 'douala' ? 'Douala' : 'Yaoundé'}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Barre principale */}
           {!result ? (
             <div
@@ -529,17 +514,6 @@ export default function Home() {
         >🚕</a>
       </div>
 
-      {/* ── Légende ── */}
-      <div className="fixed left-3 bottom-48 z-20">
-        <div className="bg-white/90 backdrop-blur rounded-xl shadow-md p-2.5 flex flex-col gap-1.5">
-          {Object.entries(TYPE_COLORS).filter(([k]) => k !== 'autre').map(([type, color]) => (
-            <div key={type} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border border-white shadow-sm flex-shrink-0" style={{ background: color }} />
-              <span className="text-xs text-gray-600 capitalize">{type}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* ── Heure de pointe ── */}
       <AnimatePresence>
