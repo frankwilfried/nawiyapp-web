@@ -140,7 +140,7 @@ export default function TaxiDriver() {
 
         {/* ── Inscription ── */}
         <AnimatePresence>
-          {showRegister && (
+          {showRegister && !profile && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-2xl shadow-sm p-5 mb-4">
               <h2 className="font-bold text-gray-800 text-base mb-4">Inscription chauffeur</h2>
