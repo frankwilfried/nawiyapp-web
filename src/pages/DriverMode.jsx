@@ -72,6 +72,19 @@ export default function DriverMode() {
 
       <div className="max-w-lg mx-auto p-4">
 
+        {/* Dashboard Taxi — modèle Uber */}
+        <button onClick={() => navigate('/taxi/driver')}
+          className="flex items-center gap-4 bg-black text-white rounded-2xl p-4 mb-3 hover:opacity-90 transition shadow-lg w-full text-left">
+          <div className="w-12 h-12 rounded-full bg-yellow-400/20 flex items-center justify-center text-2xl flex-shrink-0">
+            🚖
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-lg">Dashboard Taxi</div>
+            <div className="text-white/60 text-xs mt-0.5">En ligne · Reçois des demandes de course</div>
+          </div>
+          <span className="text-white/40 text-xl">→</span>
+        </button>
+
         {/* Mode conduite 5 places */}
         <a href="/drive"
           className="flex items-center gap-4 bg-nawiy-green text-white rounded-2xl p-4 mb-3 hover:opacity-90 transition shadow-lg">

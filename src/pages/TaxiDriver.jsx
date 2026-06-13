@@ -21,6 +21,7 @@ export default function TaxiDriver() {
   const [showRegister, setShowRegister] = useState(false);
   const [form, setForm] = useState({ plate: '', phone: '', vehicle_model: '' });
   const [regError, setRegError] = useState('');
+  const [stats, setStats] = useState(null);
 
   const { send, connected } = useTaxiSocket({
     'auth:ok': ({ driverId }) => {
@@ -42,11 +43,14 @@ export default function TaxiDriver() {
     },
   });
 
-  // Charge le profil chauffeur
+  // Charge le profil + stats
   useEffect(() => {
     apiClient.get('/taxi/drivers/me')
       .then(r => { setProfile(r.data.driver); setLoading(false); })
       .catch(() => { setLoading(false); });
+    apiClient.get('/taxi/drivers/stats')
+      .then(r => setStats(r.data))
+      .catch(() => {});
   }, []);
 
   // GPS
@@ -166,21 +170,41 @@ export default function TaxiDriver() {
         {/* ── Profil + statut ── */}
         {profile && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+            {/* Identité chauffeur */}
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-nawiy-light flex items-center justify-center text-2xl">🚕</div>
-              <div>
-                <div className="font-bold text-gray-800">{profile.plate}</div>
-                <div className="text-sm text-gray-400">{profile.vehicle_model || 'Taxi'} · {profile.phone}</div>
+              <div className="flex-1">
+                <div className="font-bold text-gray-800">{profile.name || profile.plate}</div>
+                <div className="text-sm text-gray-400">{profile.vehicle_model || 'Taxi'} · {profile.plate}</div>
                 {!profile.is_approved && (
                   <div className="text-xs text-orange-500 font-medium mt-0.5">⏳ En attente de validation admin</div>
                 )}
               </div>
-              {profile.rating_count > 0 && (
-                <div className="ml-auto text-yellow-500 font-bold text-sm">
-                  ★ {(profile.rating_sum / profile.rating_count).toFixed(1)}
+              {stats?.rating && (
+                <div className="flex flex-col items-center">
+                  <div className="text-yellow-500 font-bold text-base">★ {stats.rating}</div>
+                  <div className="text-xs text-gray-400">{stats.rating_count} avis</div>
                 </div>
               )}
             </div>
+
+            {/* Stats du jour */}
+            {stats && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <div className="text-lg font-bold text-nawiy-dark">{stats.today.trips_today}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">Trajets</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <div className="text-lg font-bold text-nawiy-green">{Number(stats.today.earnings_today).toLocaleString()}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">FCFA</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <div className="text-lg font-bold text-nawiy-dark">{stats.week.trips_week}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">Cette semaine</div>
+                </div>
+              </div>
+            )}
 
             {profile.is_approved && (
               <button
