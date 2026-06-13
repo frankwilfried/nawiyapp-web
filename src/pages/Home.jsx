@@ -336,15 +336,18 @@ export default function Home() {
         setSuggLoading(false);
         return;
       }
-      const center = selectedCity === 'yaounde'
-        ? new window.google.maps.LatLng(3.848, 11.502)
-        : new window.google.maps.LatLng(4.051, 9.768);
+      // Biais GPS : position réelle > centre de la ville > Douala par défaut
+      const gps = userPosition
+        ? new window.google.maps.LatLng(userPosition.lat, userPosition.lng)
+        : selectedCity === 'yaounde'
+          ? new window.google.maps.LatLng(3.848, 11.502)
+          : new window.google.maps.LatLng(4.051, 9.768);
 
       const svc = new window.google.maps.places.AutocompleteService();
       svc.getPlacePredictions({
         input: val,
-        location: center,
-        radius: 30000,
+        location: gps,
+        radius: userPosition ? 15000 : 30000,
         componentRestrictions: { country: 'cm' },
         language: 'fr',
       }, (predictions, status) => {
@@ -389,9 +392,14 @@ export default function Home() {
   };
 
   const shareWhatsApp = () => {
-    const txt = `🗺️ NawiyApp\n${fromText} → ${toText}\n⏱ ${result.total_duration_min} min | 💰 ${result.total_price_fcfa} FCFA\n\n` +
-      result.path.map((s, i) => `${i+1}. ${TRANSPORT_ICONS[s.transport]} ${s.from.name} → ${s.to.name} (${s.duration_min}min, ${s.price_fcfa}F)`).join('\n');
-    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+    const lines = [
+      `🗺️ *NawiyApp* — Itinéraire`,
+      `📍 ${fromText} → ${toText}`,
+      `⏱ ~${result.total_duration_min} min | 📏 ${result.distance_km} km`,
+      ``,
+      `Trouvé avec NawiyApp 🚕`,
+    ];
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
   };
 
   const requestTaxi = () => {
