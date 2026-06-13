@@ -84,7 +84,7 @@ export default function TaxiDriver() {
 
   const register = async () => {
     setRegError('');
-    if (!form.plate || !form.phone) { setRegError('Plaque et téléphone requis'); return; }
+    if (!form.plate) { setRegError('La plaque est requise'); return; }
     try {
       const r = await apiClient.post('/taxi/drivers/register', form);
       setProfile(r.data.driver);
@@ -149,7 +149,7 @@ export default function TaxiDriver() {
                   onChange={e => setForm(f => ({ ...f, plate: e.target.value }))}
                   className="bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-nawiy-green/30"
                 />
-                <input placeholder="Téléphone *" value={form.phone}
+                <input placeholder="Téléphone (optionnel)" value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   className="bg-gray-50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-nawiy-green/30"
                 />
