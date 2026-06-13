@@ -1,7 +1,3 @@
-/**
- * Hook WebSocket NawiyApp Taxi
- * Gère la connexion WS, l'auth, et expose send() + les événements reçus
- */
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
@@ -11,11 +7,11 @@ const WS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1')
 
 export function useTaxiSocket(handlers = {}) {
   const { token } = useAuthStore();
-  const ws        = useRef(null);
+  const ws          = useRef(null);
   const handlersRef = useRef(handlers);
+  const retryRef    = useRef(null);
   const [connected, setConnected] = useState(false);
 
-  // Met à jour les handlers sans recréer la connexion
   useEffect(() => { handlersRef.current = handlers; });
 
   const send = useCallback((event, data = {}) => {
@@ -24,15 +20,16 @@ export function useTaxiSocket(handlers = {}) {
     }
   }, []);
 
-  useEffect(() => {
+  const connect = useCallback(() => {
     if (!token) return;
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
 
     const socket = new WebSocket(WS_URL);
     ws.current = socket;
 
     socket.onopen = () => {
       setConnected(true);
-      // Auth immédiate
+      clearTimeout(retryRef.current);
       socket.send(JSON.stringify({ event: 'auth', data: { token } }));
     };
 
@@ -45,20 +42,21 @@ export function useTaxiSocket(handlers = {}) {
 
     socket.onclose = () => {
       setConnected(false);
-      // Reconnexion automatique après 3s
-      setTimeout(() => {
-        if (ws.current === socket) ws.current = null;
-      }, 3000);
+      // Reconnexion automatique après 4s
+      retryRef.current = setTimeout(() => connect(), 4000);
     };
 
     socket.onerror = () => socket.close();
-
-    return () => {
-      socket.close();
-      ws.current = null;
-      setConnected(false);
-    };
   }, [token]);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      clearTimeout(retryRef.current);
+      ws.current?.close();
+      ws.current = null;
+    };
+  }, [connect]);
 
   return { send, connected };
 }

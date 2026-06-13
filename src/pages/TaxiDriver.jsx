@@ -73,7 +73,8 @@ export default function TaxiDriver() {
   }, [isOnline, position, send]);
 
   const goOnline = () => {
-    if (!position) { alert('Active la géolocalisation'); return; }
+    if (!connected) { alert('Connexion au serveur en cours, réessaie dans quelques secondes…'); return; }
+    if (!position) { alert('Active la géolocalisation sur ton téléphone'); return; }
     send('driver:online', position);
   };
   const goOffline = () => send('driver:offline', {});
@@ -209,7 +210,7 @@ export default function TaxiDriver() {
             {profile.is_approved && (
               <button
                 onClick={isOnline ? goOffline : goOnline}
-                disabled={!connected}
+                disabled={false}
                 className={`w-full py-3.5 rounded-xl font-bold text-sm transition disabled:opacity-40
                   ${isOnline
                     ? 'bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-100'
