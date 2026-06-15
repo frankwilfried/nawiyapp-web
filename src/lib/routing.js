@@ -27,6 +27,65 @@ export async function getRoadGeometry(waypoints, profile = 'driving') {
   return null;
 }
 
+// Traduction des manœuvres OSRM en français
+const MANEUVER_FR = {
+  'turn-left':           'Tournez à gauche',
+  'turn-right':          'Tournez à droite',
+  'turn-slight left':    'Légèrement à gauche',
+  'turn-slight right':   'Légèrement à droite',
+  'turn-sharp left':     'Virage serré à gauche',
+  'turn-sharp right':    'Virage serré à droite',
+  'continue':            'Continuez tout droit',
+  'roundabout':          'Prenez le rond-point',
+  'merge':               'Fusionnez',
+  'depart':              'Démarrez',
+  'arrive':              'Vous êtes arrivé',
+};
+
+function maneuverText(step) {
+  const type = step.maneuver?.type || '';
+  const mod  = step.maneuver?.modifier || '';
+  const key  = mod ? `${type}-${mod}` : type;
+  const base = MANEUVER_FR[key] || MANEUVER_FR[type] || 'Continuez';
+  const street = step.name && step.name !== '' ? ` sur ${step.name}` : '';
+  return base + street;
+}
+
+/**
+ * Route complète avec étapes de navigation
+ * @returns {{ coords, steps, distanceM, durationS } | null}
+ */
+export async function getRouteWithSteps(waypoints, profile = 'driving') {
+  if (!waypoints || waypoints.length < 2) return null;
+  try {
+    const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
+    const url = `${OSRM_BASE}/${profile}/${coords}?overview=full&geometries=geojson&steps=true&annotations=false`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes?.[0]) return null;
+
+    const route = data.routes[0];
+    const steps = route.legs.flatMap(leg => leg.steps).map(s => ({
+      instruction: maneuverText(s),
+      distanceM:   Math.round(s.distance),
+      durationS:   Math.round(s.duration),
+      type:        s.maneuver?.type || 'continue',
+      location:    s.maneuver?.location, // [lng, lat]
+    })).filter(s => s.type !== 'arrive' || true);
+
+    return {
+      coords:    route.geometry.coordinates,
+      steps,
+      distanceM: Math.round(route.distance),
+      durationS: Math.round(route.duration),
+    };
+  } catch (e) {
+    console.warn('[routing] getRouteWithSteps échec', e.message);
+  }
+  return null;
+}
+
 /**
  * Trouve le point focal le plus proche d'une position GPS
  * @param {number} lat

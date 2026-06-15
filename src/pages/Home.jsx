@@ -7,7 +7,7 @@ import { useMapStore } from '../store/mapStore';
 import { buildGraph } from '../lib/staticData';
 import { findPath } from '../lib/pathfinder';
 import { applyPeakMultiplier, isPeakHour } from '../lib/geocoder';
-import { getRoadGeometry, findNearestNode } from '../lib/routing';
+import { getRoadGeometry, findNearestNode, getRouteWithSteps } from '../lib/routing';
 import SplashScreen from '../components/SplashScreen';
 import { useTaxiPassenger } from '../hooks/useTaxiPassenger';
 
@@ -63,6 +63,15 @@ export default function Home() {
   const [result, setResult]           = useState(null);
   const [sheetOpen, setSheetOpen]     = useState(false);
   const [searchError, setSearchError] = useState('');
+
+  // Navigation GPS
+  const [navActive, setNavActive]   = useState(false);
+  const [navSteps, setNavSteps]     = useState([]);
+  const [navStepIdx, setNavStepIdx] = useState(0);
+  const [navDistM, setNavDistM]     = useState(0);
+  const [navEtaMin, setNavEtaMin]   = useState(0);
+  const navRouteRef                 = useRef(null);
+  const spokenRef                   = useRef(new Set());
 
   // Taxi inline — modèle Uber
   // idle → searching → driver_found → driver_arrived → in_progress → completed
@@ -149,6 +158,7 @@ export default function Home() {
     const watchId = navigator.geolocation.watchPosition(pos => {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setUserPosition(coords);
+      updateNavigation(coords.lat, coords.lng);
 
       if (!userMarker.current && map.current) {
         const el = document.createElement('div');
@@ -263,6 +273,83 @@ export default function Home() {
     setActiveInput('to');
     setFromSugg([]);
   };
+
+  // ── Navigation GPS ───────────────────────────────────────────────
+  const speak = (text) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR'; u.rate = 1.05; u.volume = 1;
+    window.speechSynthesis.speak(u);
+  };
+
+  const haversineM = (lat1, lng1, lat2, lng2) => {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  };
+
+  const startNavigation = async () => {
+    if (!fromNode || !toNode) return;
+    const start = userPosition || { lat: fromNode.lat, lng: fromNode.lng };
+    const route = await getRouteWithSteps(
+      [start, { lat: toNode.lat, lng: toNode.lng }], 'driving'
+    );
+    if (!route) { alert('Impossible de calculer l\'itinéraire'); return; }
+    navRouteRef.current = route;
+    setNavSteps(route.steps);
+    setNavStepIdx(0);
+    setNavDistM(route.distanceM);
+    setNavEtaMin(Math.round(route.durationS / 60));
+    setNavActive(true);
+    setSheetOpen(false);
+    spokenRef.current = new Set();
+    startFollowingUser();
+    if (route.steps[0]) speak(route.steps[0].instruction);
+  };
+
+  const stopNavigation = () => {
+    setNavActive(false);
+    window.speechSynthesis?.cancel();
+    stopFollowingUser();
+  };
+
+  // Mise à jour navigation à chaque position GPS
+  const updateNavigation = useCallback((lat, lng) => {
+    if (!navActive || !navRouteRef.current) return;
+    const steps = navRouteRef.current.steps;
+    setNavStepIdx(prev => {
+      let idx = prev;
+      // Avance les étapes si on est à moins de 30m du prochain point
+      while (idx < steps.length - 1) {
+        const [sLng, sLat] = steps[idx].location || [lng, lat];
+        if (haversineM(lat, lng, sLat, sLng) < 30) idx++;
+        else break;
+      }
+      // Annonce vocale si nouvelle étape
+      if (idx !== prev && steps[idx] && !spokenRef.current.has(idx)) {
+        spokenRef.current.add(idx);
+        const dist = steps[idx].distanceM;
+        const distTxt = dist > 1000 ? `dans ${(dist/1000).toFixed(1)} km` : `dans ${dist} mètres`;
+        speak(`${distTxt}, ${steps[idx].instruction}`);
+      }
+      // Arrivée
+      if (idx === steps.length - 1 && !spokenRef.current.has('arrived')) {
+        spokenRef.current.add('arrived');
+        speak('Vous êtes arrivé à destination');
+        setTimeout(() => stopNavigation(), 4000);
+      }
+      return idx;
+    });
+    // Distance restante à vol d'oiseau vers destination
+    if (toNode) {
+      const distLeft = haversineM(lat, lng, toNode.lat, toNode.lng);
+      setNavDistM(Math.round(distLeft));
+      setNavEtaMin(Math.max(1, Math.round(distLeft / 500))); // ~30 km/h
+    }
+  }, [navActive, toNode]);
 
   // Recherche itinéraire
   const handleSearch = async () => {
@@ -445,6 +532,51 @@ export default function Home() {
 
       {/* Carte plein écran */}
       <div ref={mapContainer} className="fixed inset-0 w-full h-full" />
+
+      {/* ── Bandeau navigation ── */}
+      <AnimatePresence>
+        {navActive && navSteps.length > 0 && (
+          <motion.div
+            initial={{ y: -120 }} animate={{ y: 0 }} exit={{ y: -120 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed top-0 left-0 right-0 z-50"
+          >
+            <div className="bg-nawiy-dark text-white px-4 pt-10 pb-3 shadow-2xl">
+              <div className="flex items-start gap-3 max-w-md mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-nawiy-green flex items-center justify-center text-2xl flex-shrink-0">
+                  {navSteps[navStepIdx]?.type === 'arrive' ? '🏁' :
+                   navSteps[navStepIdx]?.instruction?.includes('gauche') ? '⬅️' :
+                   navSteps[navStepIdx]?.instruction?.includes('droite') ? '➡️' : '⬆️'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-base leading-tight">
+                    {navSteps[navStepIdx]?.instruction || 'Continuez tout droit'}
+                  </div>
+                  <div className="text-white/60 text-sm mt-0.5">
+                    {navSteps[navStepIdx]?.distanceM > 1000
+                      ? `${(navSteps[navStepIdx].distanceM / 1000).toFixed(1)} km`
+                      : `${navSteps[navStepIdx]?.distanceM || 0} m`}
+                  </div>
+                </div>
+                <button onClick={stopNavigation}
+                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 flex-shrink-0">
+                  ✕
+                </button>
+              </div>
+              {/* Barre de progression */}
+              <div className="mt-3 max-w-md mx-auto flex items-center gap-3">
+                <div className="flex-1 bg-white/10 rounded-full h-1">
+                  <div className="bg-nawiy-green h-1 rounded-full transition-all"
+                    style={{ width: `${Math.max(5, 100 - (navDistM / (navRouteRef.current?.distanceM || 1)) * 100)}%` }} />
+                </div>
+                <div className="text-xs text-white/50 flex-shrink-0">
+                  {navDistM > 1000 ? `${(navDistM/1000).toFixed(1)} km` : `${navDistM} m`} · {navEtaMin} min
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Barre de recherche flottante ── */}
       <div className="fixed top-0 left-0 right-0 z-20 p-3 pointer-events-none">
@@ -710,10 +842,16 @@ export default function Home() {
                   <div className="text-xs text-gray-400 mt-1">
                     {result.total_price_fcfa ? `${result.total_price_fcfa} FCFA` : 'Prix : données en cours'}
                   </div>
-                  <button onClick={shareWhatsApp}
-                    className="mt-2 w-full bg-white text-green-600 text-xs font-medium py-1.5 rounded-xl border border-green-200 hover:bg-green-50 transition">
-                    📤 Partager
-                  </button>
+                  <div className="flex gap-1.5 mt-2">
+                    <button onClick={startNavigation}
+                      className="flex-1 bg-nawiy-green text-white text-xs font-bold py-1.5 rounded-xl hover:bg-nawiy-dark transition active:scale-95">
+                      🧭 Naviguer
+                    </button>
+                    <button onClick={shareWhatsApp}
+                      className="flex-1 bg-white text-green-600 text-xs font-medium py-1.5 rounded-xl border border-green-200 hover:bg-green-50 transition">
+                      📤 Partager
+                    </button>
+                  </div>
                 </div>
 
                 {/* Option 2 : Taxi course */}
