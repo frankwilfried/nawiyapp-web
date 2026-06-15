@@ -423,21 +423,18 @@ export default function Home() {
         setSuggLoading(false);
         return;
       }
-      // Biais GPS : position réelle > centre de la ville > Douala par défaut
-      const gps = userPosition
-        ? new window.google.maps.LatLng(userPosition.lat, userPosition.lng)
-        : selectedCity === 'yaounde'
-          ? new window.google.maps.LatLng(3.848, 11.502)
-          : new window.google.maps.LatLng(4.051, 9.768);
-
       const svc = new window.google.maps.places.AutocompleteService();
-      svc.getPlacePredictions({
+      // Biais GPS uniquement si position connue, sinon tout le Cameroun
+      const predOptions = {
         input: val,
-        location: gps,
-        radius: userPosition ? 15000 : 30000,
         componentRestrictions: { country: 'cm' },
         language: 'fr',
-      }, (predictions, status) => {
+      };
+      if (userPosition) {
+        predOptions.location = new window.google.maps.LatLng(userPosition.lat, userPosition.lng);
+        predOptions.radius = 15000;
+      }
+      svc.getPlacePredictions(predOptions, (predictions, status) => {
         if (status !== 'OK' || !predictions) { setter(local); setSuggLoading(false); return; }
         const google = predictions.map(p => ({
           id:        'gp_' + p.place_id,
