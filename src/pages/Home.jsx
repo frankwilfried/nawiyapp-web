@@ -9,7 +9,9 @@ import { findPath } from '../lib/pathfinder';
 import { applyPeakMultiplier, isPeakHour } from '../lib/geocoder';
 import { getRoadGeometry, findNearestNode, getRouteWithSteps } from '../lib/routing';
 import SplashScreen from '../components/SplashScreen';
+import Onboarding from '../components/Onboarding';
 import { useTaxiPassenger } from '../hooks/useTaxiPassenger';
+import { useSearchHistory } from '../hooks/useSearchHistory';
 
 const TAXI_PRICE = 3000; // Prix fixe pour toutes les courses
 
@@ -44,7 +46,10 @@ export default function Home() {
   const routeMarkers   = useRef([]);
   const etaIntervalRef = useRef(null);
 
-  const [showSplash, setShowSplash]   = useState(true);
+  const [showSplash, setShowSplash]       = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('nawiy_onboarded'));
+
+  const { recents, favorites, addRecent, toggleFavorite, isFavorite } = useSearchHistory();
   const [graph, setGraph]             = useState(null);
   const [nodes, setNodes]             = useState([]);
 
@@ -522,6 +527,16 @@ export default function Home() {
         .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { display:none; }
       `}</style>
 
+      {/* Onboarding — premier lancement uniquement */}
+      <AnimatePresence>
+        {showOnboarding && !showSplash && (
+          <Onboarding onDone={() => {
+            localStorage.setItem('nawiy_onboarded', '1');
+            setShowOnboarding(false);
+          }} />
+        )}
+      </AnimatePresence>
+
       {/* Splash */}
       <AnimatePresence>
         {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
@@ -766,6 +781,7 @@ export default function Home() {
                         <button key={n.id}
                           onClick={() => {
                             resolvePlaceCoords(n, resolved => {
+                              addRecent(resolved);
                               if (activeInput === 'from') { setFromText(resolved.name); setFromNode(resolved); setFromSugg([]); setActiveInput('to'); }
                               else { setToText(resolved.name); setToNode(resolved); setToSugg([]); }
                             });
@@ -786,14 +802,59 @@ export default function Home() {
                   );
                 }
 
-                // Aucun texte → message d'invitation
-                return (
+                // Aucun texte → favoris + récents
+                const hasFav = favorites.length > 0;
+                const hasRec = recents.length > 0;
+                const renderPlaceRow = (place, icon) => (
+                  <div key={place.id} className="flex items-center gap-2 w-full">
+                    <button
+                      onClick={() => {
+                        addRecent(place);
+                        if (activeInput === 'from') { setFromText(place.name); setFromNode(place); setFromSugg([]); setActiveInput('to'); }
+                        else { setToText(place.name); setToNode(place); setToSugg([]); }
+                      }}
+                      className="flex-1 flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition text-left"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">{icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">{place.name}</div>
+                        <div className="text-xs text-gray-400 truncate">{place.subtitle || place.type || ''}</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => toggleFavorite(place)}
+                      className="w-8 h-8 flex items-center justify-center text-base hover:scale-110 transition-transform flex-shrink-0"
+                      title={isFavorite(place.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      {isFavorite(place.id) ? '⭐' : '☆'}
+                    </button>
+                  </div>
+                );
+
+                if (!hasFav && !hasRec) return (
                   <div className="text-center py-10">
                     <div className="text-3xl mb-3">🔍</div>
                     <p className="text-gray-400 text-sm">
                       {activeInput === 'from' ? 'Tape ton point de départ' : 'Tape ta destination'}
                     </p>
                     <p className="text-gray-300 text-xs mt-1">Ex : Akwa, Bonaberi, Marché Central...</p>
+                  </div>
+                );
+
+                return (
+                  <div className="flex flex-col gap-1">
+                    {hasFav && (
+                      <>
+                        <p className="text-xs text-gray-400 font-semibold uppercase mb-1 px-1">⭐ Favoris</p>
+                        {favorites.map(p => renderPlaceRow(p, '⭐'))}
+                      </>
+                    )}
+                    {hasRec && (
+                      <>
+                        <p className="text-xs text-gray-400 font-semibold uppercase mt-3 mb-1 px-1">🕐 Récents</p>
+                        {recents.map(p => renderPlaceRow(p, '🕐'))}
+                      </>
+                    )}
                   </div>
                 );
               })()}
