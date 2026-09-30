@@ -10,6 +10,8 @@ export default defineConfig({
       manifest: false, // on utilise public/manifest.json
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Gestion des notifications push (public/push-sw.js)
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/tiles\.openfreemap\.org\/.*/i,

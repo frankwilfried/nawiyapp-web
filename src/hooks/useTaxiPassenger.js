@@ -8,7 +8,7 @@ const WS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1')
   .replace('http', 'ws')
   .replace('/api/v1', '') + '/ws';
 
-function getClientId() {
+export function getClientId() {
   let id = sessionStorage.getItem('nawiy_client_id');
   if (!id) {
     // Identifiant imprévisible : il suffit à reprendre la course en cours, il ne doit pas se deviner

@@ -12,6 +12,7 @@ import Icon from '../components/Icon';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { CATEGORIES } from '../lib/pricing';
 import SignalScreen from '../components/SignalScreen';
+import PushPrompt from '../components/PushPrompt';
 import DriverDocuments from '../components/DriverDocuments';
 
 const REQUEST_TTL_S = 20; // temps pour accepter une demande
@@ -374,6 +375,11 @@ export default function TaxiDriver() {
                 className={`w-full h-14 mt-4 rounded-lg text-lg font-semibold ${isOnline ? 'bg-ink-fill text-ink' : 'bg-nawiy-600 text-white'}`}>
                 {isOnline ? 'Passer hors ligne' : 'Me mettre en ligne'}
               </button>
+            )}
+            {profile.is_approved && (
+              <PushPrompt scope="driver" className="mt-3"
+                title="Ne rate aucune course"
+                body="Sois prévenu d'une demande même écran verrouillé." />
             )}
           </section>
         )}

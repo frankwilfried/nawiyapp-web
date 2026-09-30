@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Icon from './Icon';
 import { CATEGORIES } from '../lib/pricing';
+import PushPrompt from './PushPrompt';
+import { getClientId } from '../hooks/useTaxiPassenger';
 
 const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 const clock = (min) => new Date(Date.now() + (min || 0) * 60000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -150,6 +152,10 @@ export default function TaxiWidget({
               {offer.raising ? 'Envoi…' : `Augmenter à ${offer.nextOffer.toLocaleString('fr-FR')} F`}
             </button>
           )}
+
+          <PushPrompt scope="passenger" anonClientId={getClientId()}
+            title="Être prévenu à l'arrivée"
+            body="Même si tu quittes l'appli pendant l'attente." />
 
           <button onClick={onCancel} className="w-full h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg active:bg-ink-line">
             Annuler la demande
