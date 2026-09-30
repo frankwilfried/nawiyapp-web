@@ -4,7 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { initSentry } from './lib/sentry.js';
 import './index.css';
+
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {

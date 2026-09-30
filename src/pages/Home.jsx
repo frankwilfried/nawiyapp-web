@@ -5,6 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { useCityStore } from '../store/cityStore';
 import { taxiRequestSchema } from '../lib/schemas';
+import { captureError } from '../lib/sentry';
 import { useMapStore } from '../store/mapStore';
 import { findNearestNode, getRoadGeometry, getRouteWithSteps } from '../lib/routing';
 import { isPeakHour } from '../lib/geocoder';
@@ -216,7 +217,11 @@ export default function Home() {
     if (!fromNode || !toNode) return;
     const start = userPosition || { lat: fromNode.lat, lng: fromNode.lng };
     const route = await getRouteWithSteps([start, { lat: toNode.lat, lng: toNode.lng }], 'driving');
-    if (!route) { alert("Impossible de calculer l'itinéraire"); return; }
+    if (!route) {
+      captureError(new Error('OSRM route unavailable'), { from: fromNode?.name, to: toNode?.name });
+      alert("Impossible de calculer l'itinéraire");
+      return;
+    }
     navRouteRef.current = route; setNavSteps(route.steps); setNavStepIdx(0);
     setNavDistM(route.distanceM); setNavEtaMin(Math.round(route.durationS / 60));
     setNavActive(true); setSheetOpen(false); spokenRef.current = new Set();
