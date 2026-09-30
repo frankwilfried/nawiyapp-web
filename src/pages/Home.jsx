@@ -7,8 +7,9 @@ import { useCityStore } from '../store/cityStore';
 import { taxiRequestSchema } from '../lib/schemas';
 import { useMapStore } from '../store/mapStore';
 import { findNearestNode, getRoadGeometry, getRouteWithSteps } from '../lib/routing';
-import { applyPeakMultiplier, isPeakHour } from '../lib/geocoder';
+import { isPeakHour } from '../lib/geocoder';
 import { useSearchHistory } from '../hooks/useSearchHistory';
+import { useMapData } from '../hooks/useMapData';
 import { useTaxiPassenger } from '../hooks/useTaxiPassenger';
 
 import SplashScreen   from '../components/SplashScreen';
@@ -67,6 +68,7 @@ export default function Home() {
   const etaIntervalRef = useRef(null);
 
   const { recents, favorites, addRecent, toggleFavorite, isFavorite } = useSearchHistory();
+  const { graph, nodes, source: dataSource } = useMapData(selectedCity);
 
   const { send: taxiSend } = useTaxiPassenger({
     'ride:created':        ({ ride })  => setTaxiRideId(ride.id),
@@ -138,7 +140,7 @@ export default function Home() {
     clearTimeout(suggestDebounce.current);
     suggestDebounce.current = setTimeout(() => {
       const q = val.toLowerCase();
-      const local = []; // nodes not available here; keep empty — Google handles the rest
+      const local = nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 3);
       if (!window.google?.maps?.places) { setter(local); setSuggLoading(false); return; }
       const svc = new window.google.maps.places.AutocompleteService();
       const opts = { input: val, componentRestrictions: { country: 'cm' }, language: 'fr' };
@@ -162,11 +164,14 @@ export default function Home() {
 
   const useMyPosition = useCallback(() => {
     if (!userPosition) { setSearchError('Position GPS non disponible'); return; }
-    // Use coordinates directly as from node
+    const nearest = findNearestNode(userPosition.lat, userPosition.lng, nodes);
     setFromText('📍 Ma position');
-    setFromNode({ id: '_gps', name: '📍 Ma position', lat: userPosition.lat, lng: userPosition.lng });
+    setFromNode(nearest
+      ? { ...nearest.node, _walkFrom: userPosition, _walkMin: nearest.walkMinutes, _walkDist: nearest.distanceKm }
+      : { id: '_gps', name: '📍 Ma position', lat: userPosition.lat, lng: userPosition.lng }
+    );
     setActiveInput('to'); setFromSugg([]);
-  }, [userPosition]);
+  }, [userPosition, nodes]);
 
   // ── Route drawing ─────────────────────────────────────────────────
   const drawRoute = useCallback(async (waypoints) => {
