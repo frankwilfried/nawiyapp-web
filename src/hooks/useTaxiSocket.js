@@ -42,8 +42,8 @@ export function useTaxiSocket(handlers = {}) {
 
     socket.onclose = () => {
       setConnected(false);
-      // Reconnexion automatique après 4s
-      retryRef.current = setTimeout(() => connect(), 4000);
+      // Reconnexion automatique après 4s, sauf si la page a été quittée
+      if (ws.current === socket) retryRef.current = setTimeout(() => connect(), 4000);
     };
 
     socket.onerror = () => socket.close();

@@ -24,7 +24,8 @@ nawiyapp-backend/    Backend (Render)
 
 ## Règles clés
 - JWT: utiliser `decoded.id` (pas `decoded.userId`)
-- Prix taxi fixe: 3000 FCFA
+- Taxi à la demande : prix au km par catégorie (eco / confort / moto), calculé par le SERVEUR. `nawiyapp-backend/src/lib/pricing.js` et `nawiyapp-web/src/lib/pricing.js` doivent rester identiques (test de parité dans `src/test/pricing.test.js`)
+- Chauffeur simulé : seulement avec `DEMO_DRIVER=true` (jamais en production)
 - Google Places: clé dans VITE_GOOGLE_MAPS_KEY, restreinte à nawiyapp-web.vercel.app
 - OSRM public: `https://router.project-osrm.org`
 - Tiles: `https://tiles.openfreemap.org/styles/liberty`
