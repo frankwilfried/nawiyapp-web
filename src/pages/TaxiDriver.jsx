@@ -12,6 +12,7 @@ import Icon from '../components/Icon';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { CATEGORIES } from '../lib/pricing';
 import SignalScreen from '../components/SignalScreen';
+import DriverDocuments from '../components/DriverDocuments';
 
 const REQUEST_TTL_S = 20; // temps pour accepter une demande
 const CATEGORY_ICONS = { eco: 'car', confort: 'car', moto: 'bike' };
@@ -241,6 +242,7 @@ export default function TaxiDriver() {
   const register = async () => {
     setRegError('');
     const isMoto = form.category === 'moto';
+    if (!/^\+?[\d\s]{9,20}$/.test(form.phone.trim())) { setRegError('Ton numéro de téléphone est requis : le passager doit pouvoir t\'appeler'); return; }
     if (!form.plate.trim() && !(isMoto && form.visible_number.trim())) {
       setRegError(isMoto ? 'Indique la plaque ou le numéro visible (gilet…)' : 'La plaque est requise');
       return;
@@ -329,7 +331,7 @@ export default function TaxiDriver() {
                   <input value={form.helmet_color} onChange={e => setForm(f => ({ ...f, helmet_color: e.target.value }))} placeholder="Noir" className={`${inputCls} mt-1 font-normal`} />
                 </label>
               )}
-              <label className="text-sm font-semibold text-ink">Téléphone (visible par le passager)
+              <label className="text-sm font-semibold text-ink">Téléphone (visible par le passager, obligatoire)
                 <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="6 90 12 34 56" className={`${inputCls} mt-1 font-normal`} />
               </label>
               {regError && <p role="alert" className="text-red-700 text-sm">{regError}</p>}
@@ -347,9 +349,9 @@ export default function TaxiDriver() {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-ink truncate">{profile.name || profile.plate}</div>
                 <div className="text-sm text-ink-2 truncate">
-                  {CATEGORIES[profile.category]?.label || 'Nawiy Éco'} · {[profile.vehicle_model, profile.vehicle_color].filter(Boolean).join(' ')} · {profile.plate}
+                  {[CATEGORIES[profile.category]?.label || 'Nawiy Éco', [profile.vehicle_model, profile.vehicle_color].filter(Boolean).join(' '), profile.plate || (profile.visible_number && `N° ${profile.visible_number}`)].filter(Boolean).join(' · ')}
                 </div>
-                {!profile.is_approved && <div className="text-sm text-amber-800 font-medium mt-0.5">En attente de validation</div>}
+                {!profile.is_approved && <div className="text-sm text-amber-800 font-medium mt-0.5">Pas encore validé</div>}
               </div>
               {stats?.rating && (
                 <div className="text-right"><div className="font-bold text-ink inline-flex items-center gap-1"><Icon name="star" size={16} filled /> {stats.rating}</div>
@@ -375,6 +377,8 @@ export default function TaxiDriver() {
             )}
           </section>
         )}
+
+        {profile && !profile.is_approved && <DriverDocuments />}
 
         {isOnline && (
           <section aria-labelledby="req-title" aria-live="polite">

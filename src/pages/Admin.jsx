@@ -5,6 +5,7 @@ import { graphApi } from '../api/graph.api';
 import { sessionApi } from '../api/session.api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import AdminDrivers from '../components/AdminDrivers';
 
 const STATUS_STYLES = {
   pending:  'bg-yellow-100 text-yellow-700',
@@ -12,12 +13,27 @@ const STATUS_STYLES = {
   rejected: 'bg-red-100 text-red-700',
 };
 
+// Contrôle d'accès séparé : les hooks du panneau ne doivent pas s'exécuter conditionnellement
 export default function Admin() {
   const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated || user?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-nawiy-light flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow p-8 text-center max-w-sm">
+          <p className="text-gray-600 mb-4">Accès réservé aux administrateurs.</p>
+          <a href="/login" className="bg-nawiy-600 text-white px-6 py-3 rounded-xl font-semibold inline-block">Se connecter</a>
+        </div>
+      </div>
+    );
+  }
+  return <AdminPanel user={user} />;
+}
+
+function AdminPanel({ user }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [tab, setTab]         = useState('routes'); // routes | candidates | trips
+  const [tab, setTab]         = useState('drivers'); // drivers | routes | candidates | trips
   const [selected, setSelected] = useState(null);
   const [fromPointId, setFromPointId] = useState('');
   const [toPointId, setToPointId]     = useState('');
@@ -25,18 +41,6 @@ export default function Admin() {
   const [rejectId, setRejectId]       = useState(null);
   const [cityFilter, setCityFilter]   = useState('');
   const [candidateType, setCandidateType] = useState('carrefour');
-
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return (
-      <div className="min-h-screen bg-nawiy-light flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow p-8 text-center max-w-sm">
-          <div className="text-4xl mb-3">🔒</div>
-          <p className="text-gray-600 mb-4">Accès réservé aux administrateurs.</p>
-          <a href="/login" className="bg-nawiy-green text-white px-6 py-3 rounded-xl font-semibold inline-block">Se connecter</a>
-        </div>
-      </div>
-    );
-  }
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['driver-routes', cityFilter],
@@ -99,7 +103,11 @@ export default function Admin() {
       <div className="max-w-3xl mx-auto p-4">
 
         {/* Onglets */}
-        <div className="flex gap-2 mb-5 border-b border-gray-200">
+        <div className="flex gap-2 mb-5 border-b border-gray-200 overflow-x-auto overflow-y-hidden">
+          <button onClick={() => setTab('drivers')}
+            className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px whitespace-nowrap ${tab === 'drivers' ? 'border-nawiy-green text-nawiy-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            Chauffeurs
+          </button>
           <button onClick={() => setTab('routes')}
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px ${tab === 'routes' ? 'border-nawiy-green text-nawiy-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
             Trajets soumis
@@ -116,6 +124,8 @@ export default function Admin() {
             {recordedTrips.length > 0 && <span className="ml-1.5 bg-gray-400 text-white text-xs px-1.5 py-0.5 rounded-full">{recordedTrips.length}</span>}
           </button>
         </div>
+
+        {tab === 'drivers' && <AdminDrivers />}
 
         {/* ── Onglet trajets soumis ── */}
         {tab === 'routes' && <>
