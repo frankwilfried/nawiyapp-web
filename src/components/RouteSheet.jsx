@@ -249,6 +249,10 @@ export default function RouteSheet({
               Commander {CATEGORIES[category]?.label.replace('Nawiy ', '')}{selectedCat ? ` · ${fcfa(offer)}` : ''}
             </button>
           </div>
+          <p className="text-xs text-ink-2 text-center mt-2">
+            En commandant, tu acceptes les <a href="/conditions" target="_blank" rel="noreferrer" className="underline">conditions</a> et
+            la <a href="/confidentialite" target="_blank" rel="noreferrer" className="underline">politique de confidentialité</a>.
+          </p>
         </div>
       )}
     </motion.section>

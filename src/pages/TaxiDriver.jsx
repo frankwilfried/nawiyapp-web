@@ -171,6 +171,7 @@ export default function TaxiDriver() {
   const [showRegister, setShowRegister] = useState(false);
   const [form, setForm] = useState({ plate: '', phone: '', vehicle_model: '', vehicle_color: '', helmet_color: '', visible_number: '', category: 'eco' });
   const [regError, setRegError] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
   const loadStats = () => apiClient.get('/taxi/drivers/stats').then(r => setStats(r.data)).catch(() => {});
@@ -248,8 +249,9 @@ export default function TaxiDriver() {
       setRegError(isMoto ? 'Indique la plaque ou le numéro visible (gilet…)' : 'La plaque est requise');
       return;
     }
+    if (!acceptTerms) { setRegError('Accepte les conditions chauffeurs pour continuer'); return; }
     try {
-      const r = await apiClient.post('/taxi/drivers/register', form);
+      const r = await apiClient.post('/taxi/drivers/register', { ...form, accept_terms: true });
       setProfile(r.data.driver);
       setShowRegister(false);
     } catch (e) {
@@ -334,6 +336,13 @@ export default function TaxiDriver() {
               )}
               <label className="text-sm font-semibold text-ink">Téléphone (visible par le passager, obligatoire)
                 <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="6 90 12 34 56" className={`${inputCls} mt-1 font-normal`} />
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink">
+                <input type="checkbox" checked={acceptTerms} onChange={e => setAcceptTerms(e.target.checked)} className="mt-1 w-4 h-4" />
+                <span>
+                  J'accepte les <Link to="/conditions" className="underline font-semibold">conditions chauffeurs</Link> (dont
+                  la commission de 10 % par course) et la <Link to="/confidentialite" className="underline font-semibold">politique de confidentialité</Link>.
+                </span>
               </label>
               {regError && <p role="alert" className="text-red-700 text-sm">{regError}</p>}
               <button onClick={register} className="h-12 bg-ink text-white rounded-lg font-semibold active:bg-gray-800">S'inscrire</button>

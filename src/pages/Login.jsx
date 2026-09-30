@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import apiClient from '../api/client';
 
@@ -8,6 +8,7 @@ export default function Login() {
   const [email, setEmail]        = useState('');
   const [password, setPassword]  = useState('');
   const [fullName, setFullName]  = useState('');
+  const [accept, setAccept]      = useState(false);
   const [error, setError]        = useState('');
   const [loading, setLoading]    = useState(false);
   const login    = useAuthStore(s => s.login);
@@ -22,7 +23,8 @@ export default function Login() {
         navigate(data.user.role === 'admin' ? '/admin' : '/');
       } else {
         if (!fullName.trim()) { setError('Ton prénom est requis'); setLoading(false); return; }
-        await apiClient.post('/auth/register', { full_name: fullName, email, password });
+        if (!accept) { setError("Accepte les conditions d'utilisation pour continuer"); setLoading(false); return; }
+        await apiClient.post('/auth/register', { full_name: fullName, email, password, accept_terms: true });
         const data = await login(email, password);
         navigate(data.user.role === 'admin' ? '/admin' : '/');
       }
@@ -60,9 +62,18 @@ export default function Login() {
           />
           <input
             type="password" placeholder="Mot de passe" value={password}
-            onChange={e => setPassword(e.target.value)} required minLength={6}
+            onChange={e => setPassword(e.target.value)} required minLength={mode === 'register' ? 8 : undefined}
             className="border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-nawiy-green"
           />
+          {mode === 'register' && (
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={accept} onChange={e => setAccept(e.target.checked)} className="mt-1 w-4 h-4" required />
+              <span>
+                J'accepte les <Link to="/conditions" className="text-nawiy-600 underline">conditions d'utilisation</Link> et
+                la <Link to="/confidentialite" className="text-nawiy-600 underline">politique de confidentialité</Link>.
+              </span>
+            </label>
+          )}
           <button
             type="submit" disabled={loading}
             className="bg-nawiy-green text-white rounded-lg py-3 font-semibold hover:bg-nawiy-dark transition disabled:opacity-60"

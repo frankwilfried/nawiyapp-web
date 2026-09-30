@@ -8,6 +8,7 @@ import TaxiDriver    from './pages/TaxiDriver';
 import RecordRoute      from './pages/RecordRoute';
 import DriveSession     from './pages/DriveSession';
 import PassengerRecord  from './pages/PassengerRecord';
+import Legal            from './pages/Legal';
 import BottomNav        from './components/BottomNav';
 
 const BOTTOM_NAV_PATHS = ['/', '/driver'];
@@ -28,6 +29,8 @@ function Layout() {
         <Route path="/record-route"  element={<RecordRoute />} />
         <Route path="/drive"         element={<DriveSession />} />
         <Route path="/record-trip"   element={<PassengerRecord />} />
+        <Route path="/conditions"    element={<Legal doc="terms" />} />
+        <Route path="/confidentialite" element={<Legal doc="privacy" />} />
       </Routes>
       {showNav && <BottomNav />}
     </>
