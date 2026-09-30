@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { buildGraph, STATIC_FOCAL_POINTS, STATIC_ROUTES } from '../lib/staticData';
 
-const API_URL = import.meta.env.VITE_API_URL;
-const CACHE_KEY  = 'nawiy_graph_v1';
+// VITE_API_URL se termine déjà par /api/v1 : on le retire pour ne pas l'avoir en double
+const API_URL = import.meta.env.VITE_API_URL?.replace(/\/api\/v1\/?$/, '');
+const CACHE_KEY  = 'nawiy_graph_v3'; // v3 : repères OSM + coordonnées numériques
 const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24h
 
 function loadCache(citySlug) {
@@ -31,7 +32,10 @@ async function fetchFromApi(citySlug) {
     const res = await fetch(`${API_URL}/api/v1/graph?city=${citySlug}`, { signal: controller.signal });
     clearTimeout(timeout);
     if (!res.ok) return null;
-    return await res.json(); // { nodes, edges, generated_at }
+    const data = await res.json(); // { nodes, edges, generated_at }
+    // Les colonnes DECIMAL de PostgreSQL arrivent parfois en texte : on force des nombres
+    data.nodes = (data.nodes || []).map(n => ({ ...n, lat: Number(n.lat), lng: Number(n.lng), landmarks: n.landmarks || [] }));
+    return data;
   } catch {
     clearTimeout(timeout);
     return null;

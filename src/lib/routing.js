@@ -4,17 +4,20 @@
  */
 
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1';
+// Le serveur de démo OSRM ne connaît que la voiture : pour la marche on utilise celui de FOSSGIS (OSM Allemagne)
+const OSRM_FOOT = 'https://routing.openstreetmap.de/routed-foot/route/v1/driving';
 
 /**
  * @param {Array<{lat,lng}>} waypoints
- * @param {string} profile 'driving' | 'walking' | 'cycling'
+ * @param {string} profile 'driving' | 'walking'
  * @returns {Array<[lng,lat]> | null}  coordonnées GeoJSON, null si échec
  */
 export async function getRoadGeometry(waypoints, profile = 'driving') {
   if (!waypoints || waypoints.length < 2) return null;
   try {
     const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
-    const url = `${OSRM_BASE}/${profile}/${coords}?overview=full&geometries=geojson`;
+    const base = profile === 'walking' ? OSRM_FOOT : `${OSRM_BASE}/${profile}`;
+    const url = `${base}/${coords}?overview=full&geometries=geojson`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const data = await res.json();
@@ -29,24 +32,24 @@ export async function getRoadGeometry(waypoints, profile = 'driving') {
 
 // Traduction des manœuvres OSRM en français
 const MANEUVER_FR = {
-  'turn-left':           'Tournez à gauche',
-  'turn-right':          'Tournez à droite',
+  'turn-left':           'Tourne à gauche',
+  'turn-right':          'Tourne à droite',
   'turn-slight left':    'Légèrement à gauche',
   'turn-slight right':   'Légèrement à droite',
   'turn-sharp left':     'Virage serré à gauche',
   'turn-sharp right':    'Virage serré à droite',
-  'continue':            'Continuez tout droit',
-  'roundabout':          'Prenez le rond-point',
-  'merge':               'Fusionnez',
-  'depart':              'Démarrez',
-  'arrive':              'Vous êtes arrivé',
+  'continue':            'Continue tout droit',
+  'roundabout':          'Prends le rond-point',
+  'merge':               'Rejoins la voie',
+  'depart':              'C\'est parti',
+  'arrive':              'Tu es arrivé',
 };
 
 function maneuverText(step) {
   const type = step.maneuver?.type || '';
   const mod  = step.maneuver?.modifier || '';
   const key  = mod ? `${type}-${mod}` : type;
-  const base = MANEUVER_FR[key] || MANEUVER_FR[type] || 'Continuez';
+  const base = MANEUVER_FR[key] || MANEUVER_FR[type] || 'Continue';
   const street = step.name && step.name !== '' ? ` sur ${step.name}` : '';
   return base + street;
 }
@@ -59,7 +62,8 @@ export async function getRouteWithSteps(waypoints, profile = 'driving') {
   if (!waypoints || waypoints.length < 2) return null;
   try {
     const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
-    const url = `${OSRM_BASE}/${profile}/${coords}?overview=full&geometries=geojson&steps=true&annotations=false`;
+    const base = profile === 'walking' ? OSRM_FOOT : `${OSRM_BASE}/${profile}`;
+    const url = `${base}/${coords}?overview=full&geometries=geojson&steps=true&annotations=false`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     const data = await res.json();

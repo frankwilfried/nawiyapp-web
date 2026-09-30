@@ -1,0 +1,1271 @@
+{
+  "generated_at": "2026-09-30T17:23:52.315Z",
+  "attribution": "© OpenStreetMap contributors (ODbL) — OSRM, Overpass",
+  "radius_m": 200,
+  "cities": {
+    "douala": {
+      "nodes": {
+        "1": {
+          "landmarks": []
+        },
+        "2": {
+          "landmarks": [
+            {
+              "name": "Niki Gros",
+              "kind": "supermarket",
+              "kind_label": "supermarché",
+              "distance_m": 24,
+              "osm": "node/4535708988"
+            },
+            {
+              "name": "Clinique",
+              "kind": "clinic",
+              "kind_label": "clinique",
+              "distance_m": 41,
+              "osm": "node/3255758411"
+            },
+            {
+              "name": "Nouveau pharmacie d'Akwa",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 83,
+              "osm": "node/7832097786"
+            }
+          ]
+        },
+        "3": {
+          "landmarks": []
+        },
+        "4": {
+          "landmarks": [
+            {
+              "name": "Marché New Deïdo",
+              "kind": "marketplace",
+              "kind_label": "marché",
+              "distance_m": 137,
+              "osm": "way/230089937"
+            },
+            {
+              "name": "TOTAL Réunification",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 194,
+              "osm": "node/9152157617"
+            }
+          ]
+        },
+        "5": {
+          "landmarks": [
+            {
+              "name": "Ecole privee Petit Monde",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 42,
+              "osm": "node/6990209328"
+            },
+            {
+              "name": "MRS",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 174,
+              "osm": "way/442575508"
+            }
+          ]
+        },
+        "6": {
+          "landmarks": [
+            {
+              "name": "Collège Bilingue La Bergère",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 139,
+              "osm": "way/300094752"
+            }
+          ]
+        },
+        "7": {
+          "landmarks": [
+            {
+              "name": "Groupe scolaire la Différence",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 239,
+              "osm": "node/7037840485"
+            },
+            {
+              "name": "Collège Polyvalent Bilingue Baho",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 283,
+              "osm": "way/480005581"
+            }
+          ]
+        },
+        "8": {
+          "landmarks": []
+        },
+        "9": {
+          "landmarks": [
+            {
+              "name": "Destiny Voyage",
+              "kind": "bus_station",
+              "kind_label": "gare routière",
+              "distance_m": 125,
+              "osm": "way/299875376"
+            },
+            {
+              "name": "Groupe Scolaire CAFRAD",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 194,
+              "osm": "node/3074852521"
+            }
+          ]
+        },
+        "10": {
+          "landmarks": []
+        },
+        "11": {
+          "landmarks": []
+        },
+        "12": {
+          "landmarks": [
+            {
+              "name": "École publique de Bépanda",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 170,
+              "osm": "way/457402252"
+            }
+          ]
+        },
+        "13": {
+          "landmarks": [
+            {
+              "name": "Happy Children",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 310,
+              "osm": "way/303167408"
+            },
+            {
+              "name": "Groupe scolaire Moderne et Bilingue le Parfait",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 329,
+              "osm": "node/4444155068"
+            }
+          ]
+        },
+        "14": {
+          "landmarks": [
+            {
+              "name": "Texaco",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 230,
+              "osm": "node/3056587775"
+            },
+            {
+              "name": "Garanti Express",
+              "kind": "bus_station",
+              "kind_label": "gare routière",
+              "distance_m": 287,
+              "osm": "node/4563751090"
+            }
+          ]
+        },
+        "15": {
+          "landmarks": []
+        },
+        "16": {
+          "landmarks": [
+            {
+              "name": "Fondation Médicale Sarah Eboumbou",
+              "kind": "clinic",
+              "kind_label": "clinique",
+              "distance_m": 109,
+              "osm": "node/4333925410"
+            },
+            {
+              "name": "Express Union",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 120,
+              "osm": "way/300107159"
+            }
+          ]
+        },
+        "17": {
+          "landmarks": [
+            {
+              "name": "Hôpital de District de Logbaba",
+              "kind": "hospital",
+              "kind_label": "hôpital",
+              "distance_m": 133,
+              "osm": "way/319166315"
+            }
+          ]
+        },
+        "18": {
+          "landmarks": [
+            {
+              "name": "Collège Bilingue Excellence Tercio",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 224,
+              "osm": "node/3074851780"
+            },
+            {
+              "name": "Centre Medical d'Arrondissement",
+              "kind": "clinic",
+              "kind_label": "clinique",
+              "distance_m": 301,
+              "osm": "way/299876471"
+            }
+          ]
+        },
+        "19": {
+          "landmarks": []
+        },
+        "20": {
+          "landmarks": []
+        },
+        "21": {
+          "landmarks": [
+            {
+              "name": "Emi Money",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 166,
+              "osm": "way/300095533"
+            },
+            {
+              "name": "Paroisse Antioche Bonamoussadi",
+              "kind": "place_of_worship",
+              "kind_label": "lieu de culte",
+              "distance_m": 144,
+              "osm": "way/300105662"
+            },
+            {
+              "name": "Express Exchange",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 189,
+              "osm": "node/4332529900"
+            }
+          ]
+        },
+        "22": {
+          "landmarks": [
+            {
+              "name": "Institut Polyvalent La Sorbone Fondation EPABO",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 239,
+              "osm": "node/3074852662"
+            },
+            {
+              "name": "Express Union",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 371,
+              "osm": "node/4465143296"
+            }
+          ]
+        },
+        "23": {
+          "landmarks": [
+            {
+              "name": "TOTAL Laquintinie",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 186,
+              "osm": "node/3056587786"
+            }
+          ]
+        },
+        "24": {
+          "landmarks": [
+            {
+              "name": "École Publique de New Deido",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 201,
+              "osm": "way/301197945"
+            },
+            {
+              "name": "École Privée Laïque Primaire et Maternelle",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 255,
+              "osm": "node/3074852908"
+            }
+          ]
+        },
+        "25": {
+          "landmarks": [
+            {
+              "name": "TOTAL Jomat",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 61,
+              "osm": "node/3056587783"
+            },
+            {
+              "name": "Texaco",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 85,
+              "osm": "node/3056587774"
+            },
+            {
+              "name": "Église Saint-Constantin et Sainte-Hélène",
+              "kind": "place_of_worship",
+              "kind_label": "lieu de culte",
+              "distance_m": 28,
+              "osm": "way/299613443"
+            }
+          ]
+        },
+        "26": {
+          "landmarks": [
+            {
+              "name": "Collège Impérial Lozena",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 32,
+              "osm": "node/3074851804"
+            }
+          ]
+        },
+        "27": {
+          "landmarks": [
+            {
+              "name": "Institut Privé Polyvalent FOSSO IPPF",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 272,
+              "osm": "node/3074852669"
+            },
+            {
+              "name": "Collège de la Maternité",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 354,
+              "osm": "node/3074852445"
+            }
+          ]
+        },
+        "28": {
+          "landmarks": [
+            {
+              "name": "École Privée Laïque Primaire et Maternelle",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 188,
+              "osm": "node/3074852908"
+            }
+          ]
+        }
+      },
+      "edges": {
+        "1>2": {
+          "road_duration_min": 7,
+          "road_distance_km": 3.52
+        },
+        "2>1": {
+          "road_duration_min": 8,
+          "road_distance_km": 4.24
+        },
+        "1>4": {
+          "road_duration_min": 7,
+          "road_distance_km": 3.17
+        },
+        "4>1": {
+          "road_duration_min": 6,
+          "road_distance_km": 2.62
+        },
+        "1>10": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.19
+        },
+        "10>1": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.19
+        },
+        "1>11": {
+          "road_duration_min": 9,
+          "road_distance_km": 3.66
+        },
+        "11>1": {
+          "road_duration_min": 8,
+          "road_distance_km": 3.06
+        },
+        "1>23": {
+          "road_duration_min": 6,
+          "road_distance_km": 2.98
+        },
+        "23>1": {
+          "road_duration_min": 7,
+          "road_distance_km": 3.7
+        },
+        "1>25": {
+          "road_duration_min": 6,
+          "road_distance_km": 2.3
+        },
+        "25>1": {
+          "road_duration_min": 7,
+          "road_distance_km": 3.2
+        },
+        "1>14": {
+          "road_duration_min": 6,
+          "road_distance_km": 2.81
+        },
+        "14>1": {
+          "road_duration_min": 7,
+          "road_distance_km": 3.52
+        },
+        "2>14": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.58
+        },
+        "14>2": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.55
+        },
+        "2>23": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.98
+        },
+        "23>2": {
+          "road_duration_min": 1,
+          "road_distance_km": 1.03
+        },
+        "2>25": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.3
+        },
+        "25>2": {
+          "road_duration_min": 1,
+          "road_distance_km": 1.22
+        },
+        "3>1": {
+          "road_duration_min": 14,
+          "road_distance_km": 8.55
+        },
+        "1>3": {
+          "road_duration_min": 15,
+          "road_distance_km": 9.17
+        },
+        "3>13": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.31
+        },
+        "13>3": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.31
+        },
+        "3>2": {
+          "road_duration_min": 10,
+          "road_distance_km": 7.52
+        },
+        "2>3": {
+          "road_duration_min": 10,
+          "road_distance_km": 7.64
+        },
+        "4>5": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.86
+        },
+        "5>4": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.95
+        },
+        "4>22": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.52
+        },
+        "22>4": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.74
+        },
+        "4>12": {
+          "road_duration_min": 4,
+          "road_distance_km": 1.42
+        },
+        "12>4": {
+          "road_duration_min": 4,
+          "road_distance_km": 1.4
+        },
+        "4>24": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.17
+        },
+        "24>4": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.64
+        },
+        "4>28": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.1
+        },
+        "28>4": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.71
+        },
+        "5>7": {
+          "road_duration_min": 6,
+          "road_distance_km": 5.38
+        },
+        "7>5": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.02
+        },
+        "5>9": {
+          "road_duration_min": 5,
+          "road_distance_km": 4.26
+        },
+        "9>5": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.97
+        },
+        "5>28": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.24
+        },
+        "28>5": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.26
+        },
+        "5>22": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.15
+        },
+        "22>5": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.79
+        },
+        "6>17": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.98
+        },
+        "17>6": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.98
+        },
+        "6>18": {
+          "road_duration_min": 5,
+          "road_distance_km": 3.01
+        },
+        "18>6": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.96
+        },
+        "6>15": {
+          "road_duration_min": 11,
+          "road_distance_km": 10.1
+        },
+        "15>6": {
+          "road_duration_min": 11,
+          "road_distance_km": 10.47
+        },
+        "7>8": {
+          "road_duration_min": 8,
+          "road_distance_km": 5.9
+        },
+        "8>7": {
+          "road_duration_min": 9,
+          "road_distance_km": 6.01
+        },
+        "7>21": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.25
+        },
+        "21>7": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.58
+        },
+        "7>16": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.45
+        },
+        "16>7": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.46
+        },
+        "7>27": {
+          "road_duration_min": 2,
+          "road_distance_km": 0.76
+        },
+        "27>7": {
+          "road_duration_min": 2,
+          "road_distance_km": 0.76
+        },
+        "7>9": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.77
+        },
+        "9>7": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.77
+        },
+        "8>21": {
+          "road_duration_min": 6,
+          "road_distance_km": 3.62
+        },
+        "21>8": {
+          "road_duration_min": 6,
+          "road_distance_km": 3.62
+        },
+        "8>16": {
+          "road_duration_min": 8,
+          "road_distance_km": 4.52
+        },
+        "16>8": {
+          "road_duration_min": 8,
+          "road_distance_km": 4.54
+        },
+        "9>27": {
+          "road_duration_min": 2,
+          "road_distance_km": 0.94
+        },
+        "27>9": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.54
+        },
+        "9>22": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.15
+        },
+        "22>9": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.15
+        },
+        "10>11": {
+          "road_duration_min": 10,
+          "road_distance_km": 3.85
+        },
+        "11>10": {
+          "road_duration_min": 9,
+          "road_distance_km": 3.24
+        },
+        "10>23": {
+          "road_duration_min": 7,
+          "road_distance_km": 3.17
+        },
+        "23>10": {
+          "road_duration_min": 8,
+          "road_distance_km": 3.89
+        },
+        "11>25": {
+          "road_duration_min": 5,
+          "road_distance_km": 3.14
+        },
+        "25>11": {
+          "road_duration_min": 5,
+          "road_distance_km": 3.26
+        },
+        "12>5": {
+          "road_duration_min": 3,
+          "road_distance_km": 0.79
+        },
+        "5>12": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.27
+        },
+        "12>24": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.1
+        },
+        "24>12": {
+          "road_duration_min": 5,
+          "road_distance_km": 1.96
+        },
+        "14>25": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.58
+        },
+        "25>14": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.51
+        },
+        "15>1": {
+          "road_duration_min": 13,
+          "road_distance_km": 8.71
+        },
+        "1>15": {
+          "road_duration_min": 13,
+          "road_distance_km": 8.11
+        },
+        "15>18": {
+          "road_duration_min": 9,
+          "road_distance_km": 7.85
+        },
+        "18>15": {
+          "road_duration_min": 8,
+          "road_distance_km": 7.38
+        },
+        "16>21": {
+          "road_duration_min": 2,
+          "road_distance_km": 0.8
+        },
+        "21>16": {
+          "road_duration_min": 2,
+          "road_distance_km": 0.82
+        },
+        "16>27": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.89
+        },
+        "27>16": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.88
+        },
+        "17>26": {
+          "road_duration_min": 7,
+          "road_distance_km": 5.09
+        },
+        "26>17": {
+          "road_duration_min": 7,
+          "road_distance_km": 5.09
+        },
+        "18>19": {
+          "road_duration_min": 11,
+          "road_distance_km": 9.14
+        },
+        "19>18": {
+          "road_duration_min": 12,
+          "road_distance_km": 9.61
+        },
+        "19>20": {
+          "road_duration_min": 1,
+          "road_distance_km": 0
+        },
+        "20>19": {
+          "road_duration_min": 1,
+          "road_distance_km": 0
+        },
+        "21>27": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.01
+        },
+        "27>21": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.68
+        },
+        "22>28": {
+          "road_duration_min": 1,
+          "road_distance_km": 1.03
+        },
+        "28>22": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.91
+        },
+        "23>25": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.75
+        },
+        "25>23": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.68
+        },
+        "24>28": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.42
+        },
+        "28>24": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.07
+        },
+        "24>5": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.18
+        },
+        "5>24": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.31
+        },
+        "27>22": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.98
+        },
+        "22>27": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.04
+        },
+        "28>12": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.03
+        },
+        "12>28": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.03
+        }
+      }
+    },
+    "yaounde": {
+      "nodes": {
+        "29": {
+          "landmarks": [
+            {
+              "name": "École Normale Supérieure",
+              "kind": "university",
+              "kind_label": "université",
+              "distance_m": 122,
+              "osm": "node/1987163108"
+            }
+          ]
+        },
+        "30": {
+          "landmarks": [
+            {
+              "name": "École Maternelle Publique",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 126,
+              "osm": "way/219833785"
+            },
+            {
+              "name": "Afriland First Bank POS",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 193,
+              "osm": "node/1993204152"
+            }
+          ]
+        },
+        "31": {
+          "landmarks": [
+            {
+              "name": "La farandole de bastos",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 135,
+              "osm": "node/6339811359"
+            }
+          ]
+        },
+        "32": {
+          "landmarks": [
+            {
+              "name": "Collège François-Xavier Vogt",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 115,
+              "osm": "way/222859465"
+            },
+            {
+              "name": "Kelden University",
+              "kind": "university",
+              "kind_label": "université",
+              "distance_m": 170,
+              "osm": "node/13720360027"
+            }
+          ]
+        },
+        "33": {
+          "landmarks": [
+            {
+              "name": "Pharmacie les Pétales",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 108,
+              "osm": "node/12825693870"
+            },
+            {
+              "name": "NFC Bank",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 125,
+              "osm": "node/9018218817"
+            },
+            {
+              "name": "Paroisse Tohé",
+              "kind": "place_of_worship",
+              "kind_label": "lieu de culte",
+              "distance_m": 163,
+              "osm": "node/6308090940"
+            }
+          ]
+        },
+        "34": {
+          "landmarks": [
+            {
+              "name": "École Maternelle de la Gendarmerie Nationale",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 36,
+              "osm": "node/5777000988"
+            },
+            {
+              "name": "École Publique de la Gendarmerie Nationale",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 81,
+              "osm": "node/5777000989"
+            },
+            {
+              "name": "Hopital du Bien",
+              "kind": "hospital",
+              "kind_label": "hôpital",
+              "distance_m": 166,
+              "osm": "way/192820615"
+            }
+          ]
+        },
+        "35": {
+          "landmarks": [
+            {
+              "name": "Saint Martin",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 85,
+              "osm": "node/3604839579"
+            },
+            {
+              "name": "Pharmacie du 20 mai",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 155,
+              "osm": "node/13582776685"
+            },
+            {
+              "name": "CFC Crédit Foncier Direction Générale",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 126,
+              "osm": "way/192820898"
+            }
+          ]
+        },
+        "36": {
+          "landmarks": [
+            {
+              "name": "CCA Maché central",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 5,
+              "osm": "node/6310687638"
+            },
+            {
+              "name": "Central Market",
+              "kind": "marketplace",
+              "kind_label": "marché",
+              "distance_m": 35,
+              "osm": "node/14004711916"
+            },
+            {
+              "name": "Pharmacie du Soleil",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 68,
+              "osm": "way/218797805"
+            }
+          ]
+        },
+        "37": {
+          "landmarks": [
+            {
+              "name": "Bâtiment",
+              "kind": "mall",
+              "kind_label": "centre commercial",
+              "distance_m": 219,
+              "osm": "node/11933038186"
+            },
+            {
+              "name": "Pharmacie Saint Bernadette",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 265,
+              "osm": "node/11932894614"
+            }
+          ]
+        },
+        "38": {
+          "landmarks": [
+            {
+              "name": "Pharmacie des Hortensia",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 175,
+              "osm": "way/218797799"
+            }
+          ]
+        },
+        "39": {
+          "landmarks": [
+            {
+              "name": "Dynamisme Bilingual Nursery and Primary School",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 53,
+              "osm": "node/5746305921"
+            },
+            {
+              "name": "Ecole Charles Lwuanga",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 76,
+              "osm": "way/219956453"
+            },
+            {
+              "name": "École Primaire les Papillons",
+              "kind": "school",
+              "kind_label": "école",
+              "distance_m": 93,
+              "osm": "relation/2908610"
+            }
+          ]
+        },
+        "40": {
+          "landmarks": [
+            {
+              "name": "Ecobank",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 89,
+              "osm": "way/410226551"
+            },
+            {
+              "name": "MRS",
+              "kind": "fuel",
+              "kind_label": "station-service",
+              "distance_m": 121,
+              "osm": "way/192869854"
+            },
+            {
+              "name": "Express Exchange",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 108,
+              "osm": "way/218661662"
+            }
+          ]
+        },
+        "41": {
+          "landmarks": [
+            {
+              "name": "Eglise Méthodique unie Paroisse John Wesley",
+              "kind": "place_of_worship",
+              "kind_label": "lieu de culte",
+              "distance_m": 151,
+              "osm": "way/192821629"
+            }
+          ]
+        },
+        "42": {
+          "landmarks": [
+            {
+              "name": "Pharmacie de l'Intendance",
+              "kind": "pharmacy",
+              "kind_label": "pharmacie",
+              "distance_m": 52,
+              "osm": "node/6310433854"
+            },
+            {
+              "name": "Nziko",
+              "kind": "supermarket",
+              "kind_label": "supermarché",
+              "distance_m": 44,
+              "osm": "node/2276192086"
+            },
+            {
+              "name": "Access Bank",
+              "kind": "bank",
+              "kind_label": "banque",
+              "distance_m": 57,
+              "osm": "node/13577907844"
+            }
+          ]
+        }
+      },
+      "edges": {
+        "36>29": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.39
+        },
+        "29>36": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.39
+        },
+        "36>30": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.3
+        },
+        "30>36": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.32
+        },
+        "36>33": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.67
+        },
+        "33>36": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.8
+        },
+        "36>35": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.52
+        },
+        "35>36": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.61
+        },
+        "36>42": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.51
+        },
+        "42>36": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.51
+        },
+        "36>41": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.2
+        },
+        "41>36": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.2
+        },
+        "29>40": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.49
+        },
+        "40>29": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.61
+        },
+        "29>32": {
+          "road_duration_min": 5,
+          "road_distance_km": 4.15
+        },
+        "32>29": {
+          "road_duration_min": 5,
+          "road_distance_km": 4.16
+        },
+        "29>35": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.91
+        },
+        "35>29": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.6
+        },
+        "30>31": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.07
+        },
+        "31>30": {
+          "road_duration_min": 4,
+          "road_distance_km": 3.02
+        },
+        "30>38": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.68
+        },
+        "38>30": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.62
+        },
+        "30>33": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.87
+        },
+        "33>30": {
+          "road_duration_min": 2,
+          "road_distance_km": 1.64
+        },
+        "31>38": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.01
+        },
+        "38>31": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.02
+        },
+        "31>34": {
+          "road_duration_min": 6,
+          "road_distance_km": 5.64
+        },
+        "34>31": {
+          "road_duration_min": 7,
+          "road_distance_km": 5.81
+        },
+        "32>37": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.53
+        },
+        "37>32": {
+          "road_duration_min": 4,
+          "road_distance_km": 2.52
+        },
+        "33>38": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.06
+        },
+        "38>33": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.04
+        },
+        "34>37": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.77
+        },
+        "37>34": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.74
+        },
+        "34>38": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.9
+        },
+        "38>34": {
+          "road_duration_min": 5,
+          "road_distance_km": 2.83
+        },
+        "35>42": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.49
+        },
+        "42>35": {
+          "road_duration_min": 1,
+          "road_distance_km": 0.49
+        },
+        "39>41": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.79
+        },
+        "41>39": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.79
+        },
+        "39>40": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.97
+        },
+        "40>39": {
+          "road_duration_min": 2,
+          "road_distance_km": 2.01
+        },
+        "40>42": {
+          "road_duration_min": 2,
+          "road_distance_km": 2.18
+        },
+        "42>40": {
+          "road_duration_min": 3,
+          "road_distance_km": 2.41
+        },
+        "42>29": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.9
+        },
+        "29>42": {
+          "road_duration_min": 3,
+          "road_distance_km": 1.9
+        }
+      }
+    }
+  }
+}

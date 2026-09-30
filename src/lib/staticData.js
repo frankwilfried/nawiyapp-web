@@ -1,5 +1,6 @@
 // Données statiques embarquées — graphe complet Douala + Yaoundé
 // Toutes les routes sont bidirectionnelles (is_bidirectional: true)
+import ENRICHMENT from './graphEnrichment.json' with { type: 'json' };
 
 export const STATIC_CITIES = [
   { id: 1, slug: 'douala',  name: 'Douala',  lat_center: 4.0511, lng_center: 9.7085, zoom_default: 13 },
@@ -210,8 +211,10 @@ export const STATIC_ROUTES = {
   yaounde: expandBidi(_yaounde_routes_base, 200),
 };
 
+// Repères et temps de route OpenStreetMap, générés par nawiyapp-backend/scripts/enrich-graph.js
 export function buildGraph(city) {
-  const nodes = STATIC_FOCAL_POINTS[city] || [];
-  const edges = STATIC_ROUTES[city]       || [];
+  const enr   = ENRICHMENT.cities?.[city] || {};
+  const nodes = (STATIC_FOCAL_POINTS[city] || []).map(n => ({ ...n, landmarks: enr.nodes?.[n.id]?.landmarks || [] }));
+  const edges = (STATIC_ROUTES[city] || []).map(e => ({ ...e, ...enr.edges?.[`${e.from_point_id}>${e.to_point_id}`] }));
   return { nodes, edges };
 }
