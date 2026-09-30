@@ -1,16 +1,40 @@
-# React + Vite
+# NawiyApp — Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application de navigation pour le transport informel au Cameroun (Douala + Yaoundé).
 
-Currently, two official plugins are available:
+## Stack
+- **Frontend** : React + Vite + Tailwind CSS + Framer Motion
+- **Carte** : MapLibre GL + OpenFreeMap tiles
+- **Routing** : OSRM (géométrie réelle des routes)
+- **Recherche** : Google Places API (Cameroun)
+- **Voix** : Web Speech API (français)
+- **État** : Zustand
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Démarrage rapide
 
-## React Compiler
+```bash
+cp .env.example .env
+# Remplis VITE_GOOGLE_MAPS_KEY dans .env
+npm install
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Structure `src/`
+```
+pages/         Home.jsx (coordinateur), TaxiDriver.jsx, Driver.jsx
+components/    NavBanner, MapControls, SearchBar, SearchPanel, RouteSheet, TaxiWidget, Onboarding, SplashScreen
+hooks/         useNavigation, useGooglePlaces, useSearchHistory, useTaxiPassenger, useTaxiSocket
+lib/           routing.js, pathfinder.js, staticData.js, geocoder.js
+store/         mapStore.js, cityStore.js
+```
 
-## Expanding the ESLint configuration
+## Variables d'environnement
+Voir [.env.example](.env.example).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Branches
+- `main` — production (Vercel auto-deploy)
+- `develop` — intégration
+- `feature/xxx` — nouvelles fonctionnalités
+
+## Backend
+Repo séparé : `nawiyapp-backend` — Express + WebSocket + Neon PostgreSQL (Render).
