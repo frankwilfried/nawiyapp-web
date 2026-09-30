@@ -11,7 +11,8 @@ const WS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1')
 function getClientId() {
   let id = sessionStorage.getItem('nawiy_client_id');
   if (!id) {
-    id = 'anon_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    // Identifiant imprévisible : il suffit à reprendre la course en cours, il ne doit pas se deviner
+    id = 'anon_' + crypto.randomUUID().replace(/-/g, '');
     sessionStorage.setItem('nawiy_client_id', id);
   }
   return id;

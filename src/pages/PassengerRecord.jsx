@@ -146,7 +146,7 @@ export default function PassengerRecord() {
     setPhase('done');
     setSubmitting(true);
     try {
-      const res = await axios.post(`${BASE}/trips/record`, {
+      const res = await axios.post(`${BASE}/sessions/trips/record`, {
         city_slug: city,
         legs: finalLegs,
         gps_trace: gpsBatch.current,
