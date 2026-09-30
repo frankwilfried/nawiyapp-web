@@ -19,7 +19,7 @@ const PAY_LABELS = { cash: 'Espèces', momo: 'MTN MoMo', orange_money: 'Orange M
 const fcfa = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const mapsLink = (p) => `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving`;
 
-function RequestCard({ ride, onAccept, onExpire }) {
+function RequestCard({ ride, onAccept, onDecline, onExpire }) {
   const [left, setLeft] = useState(REQUEST_TTL_S);
   useEffect(() => {
     const t = setInterval(() => setLeft(s => s - 1), 1000);
@@ -36,6 +36,11 @@ function RequestCard({ ride, onAccept, onExpire }) {
           <div className="text-2xl font-bold text-ink">{fcfa(ride.price)}</div>
           <div className="text-sm text-ink-2">{PAY_LABELS[ride.payment_method]}</div>
         </div>
+        {ride.recommended_price && ride.recommended_price !== ride.price && (
+          <p className={`text-sm font-semibold ${ride.price < ride.recommended_price ? 'text-amber-800' : 'text-nawiy-600'}`}>
+            Offre du passager · prix conseillé {fcfa(ride.recommended_price)}
+          </p>
+        )}
         <div className="text-sm text-ink-2 mt-0.5">
           À {ride.pickup_eta_min} min ({String(ride.pickup_distance_km).replace('.', ',')} km) · course {String(ride.distance_km).replace('.', ',')} km
         </div>
@@ -48,10 +53,16 @@ function RequestCard({ ride, onAccept, onExpire }) {
             <div className="text-base font-semibold text-ink truncate mt-2">{ride.to.name}</div>
           </div>
         </div>
-        <button onClick={() => onAccept(ride)}
-          className="w-full h-12 mt-4 bg-ink text-white text-base font-semibold rounded-lg active:bg-gray-800">
-          Accepter · {left} s
-        </button>
+        <div className="flex gap-2 mt-4">
+          <button onClick={() => onDecline(ride)}
+            className="flex-1 h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg active:bg-ink-line">
+            Refuser
+          </button>
+          <button onClick={() => onAccept(ride)}
+            className="flex-[2] h-12 bg-ink text-white text-base font-semibold rounded-lg active:bg-gray-800">
+            Accepter · {left} s
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -169,7 +180,8 @@ export default function TaxiDriver() {
       else if (wantOnline.current && position) send('driver:online', position);
     },
     'driver:status': ({ online }) => { setIsOnline(online); wantOnline.current = online; if (!online) setRequests([]); },
-    'ride:new':  (ride) => setRequests(prev => prev.some(r => r.ride_id === ride.ride_id) ? prev : [ride, ...prev]),
+    // Une nouvelle offre (passager qui augmente) remplace l'ancienne carte
+    'ride:new':  (ride) => setRequests(prev => [ride, ...prev.filter(r => r.ride_id !== ride.ride_id)]),
     'ride:taken': ({ ride_id }) => setRequests(prev => prev.filter(r => r.ride_id !== ride_id)),
     'ride:you_accepted': (ride) => { setActiveRide(ride); setRequests([]); setPassenger({}); },
     'ride:passenger_position': ({ distance_m }) => setPassenger(p => ({ ...p, distance_m })),
@@ -220,7 +232,11 @@ export default function TaxiDriver() {
     send('driver:online', position);
   };
 
-  const expire = useCallback((id) => setRequests(prev => prev.filter(r => r.ride_id !== id)), []);
+  // Refuser, ou laisser expirer, retire la carte et prévient le passager (il pourra augmenter son offre)
+  const decline = useCallback((id) => {
+    send('ride:decline', { ride_id: id });
+    setRequests(prev => prev.filter(r => r.ride_id !== id));
+  }, [send]);
 
   const register = async () => {
     setRegError('');
@@ -374,7 +390,8 @@ export default function TaxiDriver() {
             ) : (
               <div className="flex flex-col gap-3">
                 <AnimatePresence>
-                  {requests.map(r => <RequestCard key={r.ride_id} ride={r} onExpire={expire}
+                  {requests.map(r => <RequestCard key={`${r.ride_id}-${r.price}`} ride={r} onExpire={decline}
+                    onDecline={(ride) => decline(ride.ride_id)}
                     onAccept={(ride) => send('ride:accept_uber', { ride_id: ride.ride_id })} />)}
                 </AnimatePresence>
               </div>

@@ -11,7 +11,7 @@ import { getRoadGeometry, getRouteWithSteps, findNearestNode } from '../lib/rout
 import { isPeakHour, applyPeakMultiplier } from '../lib/geocoder';
 import { planTrip, haversineKm } from '../lib/itinerary';
 import { MODES } from '../lib/modes';
-import { priceFor, roadKm } from '../lib/pricing';
+import { priceFor, roadKm, offerBounds } from '../lib/pricing';
 import { getTaxiEstimate } from '../api/taxi.api';
 import { distanceM, bearingDeg, relativeDirection, formatDistance } from '../lib/geo';
 import { useSearchHistory } from '../hooks/useSearchHistory';
@@ -94,6 +94,8 @@ export default function Home() {
   const [taxiDriver,   setTaxiDriver]   = useState(null);
   const [taxiEta,      setTaxiEta]      = useState(null);
   const [taxiNotified, setTaxiNotified] = useState(null);
+  const [taxiDeclines, setTaxiDeclines] = useState(null); // { declined, notified, all_declined }
+  const [raising,      setRaising]      = useState(false);
   const [driverPos,    setDriverPos]    = useState(null);
   const [paymentState, setPaymentState] = useState(null);
   const [taxiEstimate, setTaxiEstimate] = useState(null);
@@ -118,6 +120,9 @@ export default function Home() {
   const { send: taxiSend, connected: taxiConnected } = useTaxiPassenger({
     'ride:created':  ({ ride }) => { setTaxiRide(ride); setTaxiMode('searching'); },
     'ride:notified': ({ drivers_notified }) => setTaxiNotified(drivers_notified),
+    // Offre façon inDrive : refus des chauffeurs, hausse de l'offre
+    'ride:declined': (d) => setTaxiDeclines(d),
+    'ride:raised':   ({ price }) => { setTaxiRide(r => r && { ...r, price }); setTaxiDeclines(null); setRaising(false); },
     'ride:confirmed': (data) => {
       setTaxiDriver(data.driver); setTaxiEta(data.eta_min ?? null); setTaxiMode('driver_found');
       setTaxiSignal(data.signal || null);
@@ -132,16 +137,19 @@ export default function Home() {
     'ride:reassigning':     () => { setTaxiDriver(null); setDriverPos(null); setTaxiMode('searching'); showToast('Ton chauffeur a dû annuler. On t\'en cherche un autre.'); },
     'ride:no_driver':       () => { resetTaxi(); setSheetOpen(true); showToast('Aucun chauffeur disponible pour l\'instant. Réessaie dans quelques minutes.'); },
     'ride:cancel_ok':       () => {},
-    'ride:error':           ({ message }) => { if (['pickup', 'searching'].includes(taxiMode)) { resetTaxi(); setSheetOpen(true); } showToast(message); },
+    'ride:error':           ({ message }) => { setRaising(false); if (['pickup', 'searching'].includes(taxiMode)) { resetTaxi(); setSheetOpen(true); } showToast(message); },
     // Reprise après une coupure réseau ou un rechargement de la page
     'ride:state': ({ ride, driver }) => {
       setTaxiRide(ride); setTaxiDriver(driver); setTaxiMode(modeFromRide(ride));
       setTaxiSignal(ride.signal || null); setPassengerNote(ride.passenger_note || '');
       if (driver?.lat != null) setDriverPos({ lat: driver.lat, lng: driver.lng });
       if (!result) {
+        const from = { id: '_ride_from', ...ride.from }, to = { id: '_ride_to', ...ride.to };
         setFromText(ride.from.name); setToText(ride.to.name);
-        setFromNode({ id: '_ride_from', ...ride.from }); setToNode({ id: '_ride_to', ...ride.to });
-        setResult({ legs: [], total_duration_min: null, distance_km: ride.distance_km });
+        setFromNode(from); setToNode(to);
+        // Itinéraire recalculé (sinon estimation simple) pour que la fiche reste complète après la course
+        setResult(planTrip(graph, from, to, { departAt: Date.now(), peak: isPeakHour() })
+          || { legs: [], total_duration_min: Math.max(1, Math.round(ride.distance_km * 2)), distance_km: ride.distance_km });
       }
       setSheetOpen(true);
     },
@@ -408,13 +416,21 @@ export default function Home() {
     return { label: 'Point choisi sur la carte', hint: near ? `à ${near.distanceKm.toString().replace('.', ',')} km de ${near.node.name}` : '' };
   }, [fromNode, nodes]);
 
+  // Prix conseillé au point de prise en charge + offre du passager ramenée dans la fourchette autorisée
+  const pricing = useCallback((category, at, wanted) => {
+    const recommended = priceFor(category, roadKm(at, toNode));
+    const b = offerBounds(category, recommended);
+    const offer = wanted == null ? recommended : Math.min(b.max, Math.max(b.min, Math.round(wanted / b.step) * b.step));
+    return { recommended, price: offer };
+  }, [toNode]);
+
   // 1. « Commander » : on fait d'abord confirmer le point exact de prise en charge
-  const orderTaxi = (category) => {
+  const orderTaxi = (category, offer) => {
     if (!fromNode || !toNode) return;
     if (!taxiConnected) { showToast('Service taxi injoignable pour l\'instant'); return; }
     const method = taxiEstimate?.payment_methods?.find(m => m.id === payment.method);
     if (method && !method.available) { setPaymentOpen(true); return; }
-    setPickup({ category, lat: fromNode.lat, lng: fromNode.lng, ...describePickup(fromNode), price: priceFor(category, roadKm(fromNode, toNode)) });
+    setPickup({ category, lat: fromNode.lat, lng: fromNode.lng, ...describePickup(fromNode), ...pricing(category, fromNode, offer), wanted: offer });
     setTaxiMode('pickup'); setSheetOpen(false);
     map.current?.flyTo({ center: [fromNode.lng, fromNode.lat], zoom: 17, padding: { top: 0, bottom: PICKUP_PAD, left: 0, right: 0 }, duration: 800 });
   };
@@ -427,11 +443,11 @@ export default function Home() {
     const onEnd = () => {
       const c = m.getCenter();
       const at = { lat: c.lat, lng: c.lng };
-      setPickup(p => p && { ...p, moving: false, ...at, ...describePickup(at), price: priceFor(p.category, roadKm(at, toNode)) });
+      setPickup(p => p && { ...p, moving: false, ...at, ...describePickup(at), ...pricing(p.category, at, p.wanted) });
     };
     m.on('movestart', onStart); m.on('moveend', onEnd);
     return () => { m.off('movestart', onStart); m.off('moveend', onEnd); m.setPadding({ top: 0, bottom: 0, left: 0, right: 0 }); };
-  }, [taxiMode, describePickup, toNode]);
+  }, [taxiMode, describePickup, pricing]);
 
   // 2. Confirmation : la demande part au serveur, qui calcule le prix définitif (identique à l'affiché)
   const confirmPickup = () => {
@@ -439,12 +455,14 @@ export default function Home() {
       from_lat: pickup.lat, from_lng: pickup.lng, from_name: pickup.label,
       to_lat: toNode.lat, to_lng: toNode.lng, to_name: toText,
       city_slug: selectedCity, category: pickup.category, payment_method: payment.method,
+      offer_price: pickup.price,
       ...(payment.method !== 'cash' && { payer_phone: payment.phone }),
     };
     const parsed = taxiRequestSchema.safeParse(payload);
     if (!parsed.success) { showToast(parsed.error.issues[0]?.message || 'Impossible de commander pour ce trajet'); return; }
     setTaxiNotified(null); setPaymentState(null);
-    setTaxiRide({ price: pickup.price, category: pickup.category, payment_method: payment.method, from: { lat: pickup.lat, lng: pickup.lng, name: pickup.label }, to: { lat: toNode.lat, lng: toNode.lng, name: toText } });
+    setTaxiDeclines(null);
+    setTaxiRide({ price: pickup.price, recommended_price: pickup.recommended, category: pickup.category, payment_method: payment.method, from: { lat: pickup.lat, lng: pickup.lng, name: pickup.label }, to: { lat: toNode.lat, lng: toNode.lng, name: toText } });
     setTaxiMode('searching'); setSheetOpen(true);
     taxiSend('ride:request', parsed.data);
     // Tracé du taxi : direct de la prise en charge à la destination (plus celui du transport informel)
@@ -457,6 +475,7 @@ export default function Home() {
   const resetTaxi = () => {
     setTaxiMode('idle'); setTaxiRide(null); setTaxiDriver(null); setTaxiEta(null);
     setTaxiNotified(null); setDriverPos(null); setPaymentState(null); setPickup(null);
+    setTaxiDeclines(null); setRaising(false);
     setTaxiSignal(null); setPassengerNote(''); setSignalOpen(false);
   };
 
@@ -493,6 +512,19 @@ export default function Home() {
     if (d > 400) return null; // le radar n'a de sens que quand le chauffeur est tout proche
     return { distance: formatDistance(d), direction: relativeDirection(bearingDeg(me, driverPos), heading) };
   })();
+
+  // Hausse d'offre proposée : jusqu'au prix conseillé, puis +10 % (au palier), sans dépasser le maximum
+  const nextOffer = (() => {
+    if (taxiMode !== 'searching' || !taxiRide?.price || !taxiRide.category) return null;
+    const rec = taxiRide.recommended_price || taxiRide.price;
+    const b = offerBounds(taxiRide.category, rec);
+    const target = taxiRide.price < rec ? rec : Math.max(taxiRide.price + b.step, Math.ceil((taxiRide.price * 1.1) / b.step) * b.step);
+    return target > b.max ? null : target;
+  })();
+  const taxiOffer = {
+    declines: taxiDeclines, nextOffer, raising,
+    onRaise: () => { if (!nextOffer || !taxiRide?.id) return; setRaising(true); taxiSend('ride:raise', { ride_id: taxiRide.id, price: nextOffer }); },
+  };
 
   const taxiFind = {
     signal: taxiSignal, distance: radar?.distance, direction: radar?.direction, note: passengerNote,
@@ -727,7 +759,7 @@ export default function Home() {
             onClose={() => setSheetOpen(false)}
             onNavigate={startNavigation} onShare={shareWhatsApp} onShareTaxi={shareTaxi}
             onSafety={() => setSafetyOpen(true)} onCancelTaxi={() => askCancelRide()}
-            taxiFind={taxiFind}
+            taxiFind={taxiFind} taxiOffer={taxiOffer}
           />
         )}
       </AnimatePresence>

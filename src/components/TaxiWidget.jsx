@@ -103,7 +103,7 @@ function Actions({ driver, onShare, onSafety }) {
 // Suivi de course façon Uber : fond blanc, typo noire, une action principale par état
 export default function TaxiWidget({
   taxiMode, taxiRide, taxiDriver, taxiEta, taxiNotified, connected,
-  onCancel, onShare, onSafety, find = {},
+  onCancel, onShare, onSafety, find = {}, offer = {},
 }) {
   const code = taxiRide?.pickup_code;
 
@@ -126,9 +126,31 @@ export default function TaxiWidget({
           </div>
           {taxiRide && (
             <p className="text-sm text-ink-2">
-              {CATEGORIES[taxiRide.category]?.label} · <span className="text-ink font-semibold">{taxiRide.price?.toLocaleString('fr-FR')} FCFA</span>
+              {CATEGORIES[taxiRide.category]?.label} · Ton offre <span className="text-ink font-semibold">{taxiRide.price?.toLocaleString('fr-FR')} FCFA</span>
+              {taxiRide.recommended_price && taxiRide.recommended_price !== taxiRide.price && (
+                <> · conseillé {taxiRide.recommended_price.toLocaleString('fr-FR')} F</>
+              )}
             </p>
           )}
+
+          {/* Refus des chauffeurs (façon inDrive) : proposer d'augmenter l'offre */}
+          {offer.declines?.declined > 0 && (
+            <div className="rounded-lg bg-amber-100 text-amber-900 px-3 py-2" role="status">
+              <p className="text-sm font-semibold">
+                {offer.declines.all_declined
+                  ? 'Les chauffeurs proches ont refusé ton offre'
+                  : `${offer.declines.declined} chauffeur${offer.declines.declined > 1 ? 's ont' : ' a'} refusé ton offre`}
+              </p>
+              <p className="text-sm">Augmente-la pour trouver plus vite.</p>
+            </div>
+          )}
+          {offer.nextOffer && (
+            <button onClick={offer.onRaise} disabled={offer.raising}
+              className={`w-full h-12 text-base font-semibold rounded-lg disabled:opacity-60 ${offer.declines?.declined > 0 ? 'bg-ink text-white active:bg-gray-800' : 'bg-ink-fill text-ink active:bg-ink-line'}`}>
+              {offer.raising ? 'Envoi…' : `Augmenter à ${offer.nextOffer.toLocaleString('fr-FR')} F`}
+            </button>
+          )}
+
           <button onClick={onCancel} className="w-full h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg active:bg-ink-line">
             Annuler la demande
           </button>

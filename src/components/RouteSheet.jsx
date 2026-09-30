@@ -4,7 +4,36 @@ import TaxiWidget from './TaxiWidget';
 import Icon from './Icon';
 import ItineraryTimeline, { ModeChain } from './ItineraryTimeline';
 import { PaymentIcon } from './PaymentSheet';
-import { CATEGORIES } from '../lib/pricing';
+import { CATEGORIES, offerBounds } from '../lib/pricing';
+
+// Offre du passager façon inDrive : − / + autour du prix conseillé
+function OfferStepper({ recommended, category, value, onChange }) {
+  const b = offerBounds(category, recommended);
+  const diff = value - recommended;
+  return (
+    <div className="mt-2 px-3 py-2 border-t border-ink-line">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink" id="offer-label">Ton offre</p>
+          <p className="text-xs text-ink-2">Conseillé : {recommended.toLocaleString('fr-FR')} F</p>
+        </div>
+        <div className="flex items-center gap-2" role="group" aria-labelledby="offer-label">
+          <button onClick={() => onChange(Math.max(b.min, value - b.step))} disabled={value <= b.min}
+            aria-label={`Baisser de ${b.step} F`}
+            className="w-11 h-11 rounded-full bg-ink-fill text-ink text-xl font-semibold disabled:text-ink-3">−</button>
+          <output className="min-w-[5.5rem] text-center text-lg font-bold text-ink" aria-live="polite">
+            {value.toLocaleString('fr-FR')} F
+          </output>
+          <button onClick={() => onChange(Math.min(b.max, value + b.step))} disabled={value >= b.max}
+            aria-label={`Augmenter de ${b.step} F`}
+            className="w-11 h-11 rounded-full bg-ink-fill text-ink text-xl font-semibold disabled:text-ink-3">+</button>
+        </div>
+      </div>
+      {diff < 0 && <p className="text-xs text-amber-800 mt-1">Offre basse : moins de chauffeurs accepteront, l'attente peut être plus longue.</p>}
+      {diff > 0 && <p className="text-xs text-nawiy-600 mt-1">Offre au-dessus du prix conseillé : tu trouveras plus vite.</p>}
+    </div>
+  );
+}
 
 const CATEGORY_ICONS = { eco: 'car', confort: 'car', moto: 'bike' };
 const CATEGORY_NOTES = { eco: 'Économique, 4 places', confort: 'Climatisé, plus spacieux', moto: 'Rapide, 1 passager' };
@@ -79,11 +108,12 @@ export default function RouteSheet({
   open, result, toText, initialView = 'overview',
   taxiMode, taxiRide, taxiDriver, taxiEta, taxiNotified, taxiConnected,
   taxiEstimate, payment, onOpenPayment, onOrderTaxi,
-  onClose, onNavigate, onShare, onShareTaxi, onSafety, onCancelTaxi, taxiFind,
+  onClose, onNavigate, onShare, onShareTaxi, onSafety, onCancelTaxi, taxiFind, taxiOffer,
 }) {
   // overview : deux choix · itinerary : frise façon DB Navigator · ride : course à la demande
   const [view, setView] = useState(initialView);
   const [category, setCategory] = useState('moto');
+  const [offers, setOffers] = useState({}); // offre par catégorie ; par défaut le prix conseillé
   const dragControls = useDragControls();
   if (!open || !result) return null;
 
@@ -93,6 +123,7 @@ export default function RouteSheet({
   const cheapest = categories.length ? Math.min(...categories.map(c => c.price)) : null;
   const nearest = categories.filter(c => c.pickup_eta_min != null).sort((a, b) => a.pickup_eta_min - b.pickup_eta_min)[0];
   const selectedCat = categories.find(c => c.id === category);
+  const offer = selectedCat ? (offers[category] ?? selectedCat.price) : null;
   const payMethod = taxiEstimate?.payment_methods?.find(m => m.id === payment.method);
   const hasItinerary = result.legs?.length > 0;
 
@@ -132,7 +163,7 @@ export default function RouteSheet({
           <TaxiWidget
             taxiMode={taxiMode} taxiRide={taxiRide} taxiDriver={taxiDriver} taxiEta={taxiEta}
             taxiNotified={taxiNotified} connected={taxiConnected}
-            onCancel={onCancelTaxi} onShare={onShareTaxi} onSafety={onSafety} find={taxiFind}
+            onCancel={onCancelTaxi} onShare={onShareTaxi} onSafety={onSafety} find={taxiFind} offer={taxiOffer}
           />
         </div>
       ) : view === 'overview' ? (
@@ -193,8 +224,13 @@ export default function RouteSheet({
             </p>
           )}
 
+          {selectedCat && (
+            <OfferStepper recommended={selectedCat.price} category={category} value={offer}
+              onChange={(v) => setOffers(o => ({ ...o, [category]: v }))} />
+          )}
+
           <button onClick={onOpenPayment}
-            className="w-full flex items-center gap-3 mt-2 px-3 h-11 border-t border-ink-line text-left active:bg-ink-fill">
+            className="w-full flex items-center gap-3 px-3 h-11 border-t border-ink-line text-left active:bg-ink-fill">
             <PaymentIcon method={payment.method} />
             <span className="flex-1 text-base text-ink truncate">
               {payMethod?.label || 'Espèces'}{payment.phone ? ` · ${payment.phone.replace(/(\d)(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5')}` : ''}
@@ -209,8 +245,8 @@ export default function RouteSheet({
           )}
 
           <div className="flex gap-2 mt-2">
-            <button onClick={() => onOrderTaxi(category)} disabled={!taxiConnected || !selectedCat} className={primaryBtn}>
-              Commander {CATEGORIES[category]?.label.replace('Nawiy ', '')}{selectedCat ? ` · ${fcfa(selectedCat.price)}` : ''}
+            <button onClick={() => onOrderTaxi(category, offer)} disabled={!taxiConnected || !selectedCat} className={primaryBtn}>
+              Commander {CATEGORIES[category]?.label.replace('Nawiy ', '')}{selectedCat ? ` · ${fcfa(offer)}` : ''}
             </button>
           </div>
         </div>

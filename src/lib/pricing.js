@@ -34,6 +34,20 @@ export function priceFor(category, distanceKm) {
   return Math.max(c.min, Math.ceil(raw / c.step) * c.step);
 }
 
+/**
+ * Fourchette de l'offre que le passager peut proposer, autour du prix conseillé :
+ * de 70 % à 200 %, par paliers de la catégorie (évite les offres absurdes).
+ */
+export function offerBounds(category, recommended) {
+  const c = CATEGORIES[category];
+  if (!c) throw new Error(`Catégorie inconnue : ${category}`);
+  return {
+    min: Math.max(c.step, Math.floor((recommended * 0.7) / c.step) * c.step),
+    max: Math.ceil((recommended * 2) / c.step) * c.step,
+    step: c.step,
+  };
+}
+
 /** Minutes estimées pour parcourir distanceKm (au moins 1). */
 export function etaMinutes(category, distanceKm) {
   const speed = CITY_SPEED_KMH[category] || 20;

@@ -37,6 +37,7 @@ export const taxiRequestSchema = z.object({
   category:       z.enum(['eco','confort','moto']),
   payment_method: z.enum(['cash','momo','orange_money']),
   payer_phone:    cmPhoneSchema.optional(),
+  offer_price:    z.number().int().positive().optional(), // offre du passager (bornée par le serveur)
 }).refine(d => d.payment_method === 'cash' || !!d.payer_phone,
   { message: 'Numéro requis pour le paiement mobile', path: ['payer_phone'] });
 
