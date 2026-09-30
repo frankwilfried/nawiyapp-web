@@ -1,47 +1,93 @@
-export default function SearchBar({ result, fromText, toText, fromNode, toNode, onOpen, onClear }) {
+import Icon from './Icon';
+
+const TAXI_STATUS = {
+  searching:      "Recherche d'un chauffeur…",
+  driver_found:   'Chauffeur en route',
+  driver_arrived: 'Ton chauffeur est arrivé',
+  in_progress:    'Course en cours',
+  completed:      'Course terminée',
+};
+
+// Raccourcis sous la barre : favoris d'abord, puis récents, sans doublons
+function quickPlaces(favorites, recents) {
+  const seen = new Set();
+  const out = [];
+  for (const [list, kind] of [[favorites, 'fav'], [recents, 'recent']]) {
+    for (const p of list) {
+      if (seen.has(p.id) || !p.lat) continue;
+      seen.add(p.id); out.push({ place: p, kind });
+    }
+  }
+  return out.slice(0, 5);
+}
+
+export default function SearchBar({
+  result, fromText, toText, fromNode, toNode, taxiMode, taxiEta,
+  favorites = [], recents = [],
+  onOpen, onOpenSheet, onClear, onQuickDestination,
+}) {
+  // ── Trajet affiché : carte blanche départ → arrivée ────────────────
   if (result) {
+    const taxiStatus = TAXI_STATUS[taxiMode];
     return (
-      <div className="bg-nawiy-green text-white rounded-2xl shadow-xl mx-auto max-w-md px-4 py-3 flex items-center gap-3">
-        <div className="flex-1">
-          <div className="font-semibold text-sm">{fromText} → {toText}</div>
-          <div className="text-xs text-white/80 mt-0.5">
-            {result.total_duration_min} min • {result.total_price_fcfa ?? 'Prix : données en cours'}
-            {result.walkingIntro && (
-              <span className="opacity-70"> • 🚶 {result.walkingIntro.minutes} min à pied</span>
-            )}
-          </div>
+      <div className="mx-auto max-w-md flex flex-col items-center gap-2">
+        <div className="w-full bg-white rounded-2xl shadow-float flex items-center">
+          <button onClick={onOpenSheet} className="flex-1 min-w-0 flex items-center gap-3 text-left pl-4 py-2.5"
+            aria-label={`Voir le trajet ${fromText} vers ${toText}`}>
+            <div className="flex flex-col items-center flex-shrink-0" aria-hidden="true">
+              <span className="w-2 h-2 rounded-full bg-ink" />
+              <span className="w-px h-3 bg-ink" />
+              <span className="w-2 h-2 bg-ink" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-ink truncate">{fromText}</div>
+              <div className="text-sm font-semibold text-ink truncate">{toText}</div>
+            </div>
+          </button>
+          <button onClick={onClear} aria-label="Effacer le trajet"
+            className="w-11 h-11 mr-1 rounded-full flex items-center justify-center text-ink-2 active:bg-ink-fill flex-shrink-0">
+            <Icon name="x" size={20} />
+          </button>
         </div>
-        <button onClick={onClear}
-          className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition">
-          <span className="text-sm">✕</span>
-        </button>
+        {taxiStatus && (
+          <button onClick={onOpenSheet}
+            className="bg-ink text-white text-sm font-medium rounded-full pl-3 pr-4 py-2 shadow-float flex items-center gap-2">
+            <Icon name="taxi" size={16} />
+            {taxiStatus}{taxiMode === 'driver_found' && taxiEta != null ? ` · ${taxiEta} min` : ''}
+          </button>
+        )}
       </div>
     );
   }
 
+  // ── Accueil : pilule de recherche + raccourcis ─────────────────────
+  const chips = quickPlaces(favorites, recents);
   return (
-    <div
-      className="bg-white rounded-2xl shadow-xl mx-auto max-w-md cursor-pointer overflow-hidden"
-      onClick={() => onOpen('from')}
-    >
-      <div className="flex items-center gap-3 px-4 py-3.5">
-        <div className="w-8 h-8 rounded-full bg-nawiy-light flex items-center justify-center flex-shrink-0">
-          <span className="text-nawiy-green font-bold text-sm">N</span>
+    <div className="mx-auto max-w-md">
+      <button onClick={() => onOpen('to')}
+        className="w-full bg-white rounded-full shadow-float flex items-center gap-3 pl-4 pr-2 h-12 text-left active:bg-gray-50">
+        <Icon name="search" size={20} className="text-ink-2 flex-shrink-0" />
+        <span className={`flex-1 min-w-0 truncate text-base ${fromNode ? 'text-ink' : 'text-ink-2'}`}>
+          {fromNode ? `${fromNode.name} → ${toNode ? toNode.name : 'où vas-tu ?'}` : 'Où vas-tu ?'}
+        </span>
+        <span aria-hidden="true"
+          className="w-8 h-8 rounded-full bg-nawiy-600 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
+          N
+        </span>
+      </button>
+
+      {chips.length > 0 && (
+        <div className="mt-2 -mx-3 px-3 flex gap-2 overflow-x-auto no-scrollbar">
+          {chips.map(({ place, kind }) => (
+            <button key={place.id} onClick={() => onQuickDestination(place)}
+              className="flex-shrink-0 bg-white rounded-full shadow-float h-9 pl-3 pr-4 flex items-center gap-1.5 text-sm text-ink active:bg-gray-50">
+              <Icon name={kind === 'fav' ? 'star' : 'clock'} size={16}
+                filled={kind === 'fav'} className={kind === 'fav' ? 'text-nawiy-600' : 'text-ink-2'} />
+              <span className="max-w-[10rem] truncate">{place.name}</span>
+            </button>
+          ))}
         </div>
-        <div className="flex-1">
-          <div className="text-sm font-medium text-gray-800">
-            {fromNode ? fromNode.name : "D'où tu pars ?"}
-          </div>
-          {fromNode
-            ? <div className="text-xs text-gray-400 mt-0.5">→ {toNode ? toNode.name : 'Où vas-tu ?'}</div>
-            : <div className="text-xs text-gray-400 mt-0.5">Trouver un itinéraire</div>
-          }
-        </div>
-        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-      </div>
+      )}
     </div>
   );
 }

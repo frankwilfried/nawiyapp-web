@@ -1,52 +1,61 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import Icon from './Icon';
 
-export default function NavBanner({ navActive, navSteps, navStepIdx, navDistM, navEtaMin, navRouteRef, onStop }) {
+const fmtDist = (m) => (m > 1000 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m)} m`);
+
+function turnIcon(step) {
+  if (step?.type === 'arrive') return 'flag';
+  if (step?.instruction?.includes('gauche')) return 'turnLeft';
+  if (step?.instruction?.includes('droite')) return 'turnRight';
+  return 'arrowUp';
+}
+
+// Navigation façon Google Maps : consigne en haut, temps restant et « Quitter » en bas
+export default function NavBanner({ navActive, navSteps, navStepIdx, navDistM, navEtaMin, navTotalM, navArrivalTs, onStop }) {
   if (!navActive || !navSteps.length) return null;
 
   const step = navSteps[navStepIdx];
-  const icon = step?.type === 'arrive' ? '🏁'
-    : step?.instruction?.includes('gauche') ? '⬅️'
-    : step?.instruction?.includes('droite') ? '➡️' : '⬆️';
-
-  const progress = Math.max(5, 100 - (navDistM / (navRouteRef.current?.distanceM || 1)) * 100);
+  const progress = Math.max(5, 100 - (navDistM / (navTotalM || 1)) * 100);
+  const arrival = navArrivalTs ? new Date(navArrivalTs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
-    <AnimatePresence>
+    <>
       <motion.div
-        initial={{ y: -120 }} animate={{ y: 0 }} exit={{ y: -120 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="fixed top-0 left-0 right-0 z-50"
+        initial={{ y: -40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -40, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+        className="fixed top-0 left-0 right-0 z-50 px-3"
+        style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
+        role="status" aria-live="polite"
       >
-        <div className="bg-nawiy-dark text-white px-4 pt-10 pb-3 shadow-2xl">
-          <div className="flex items-start gap-3 max-w-md mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-nawiy-green flex items-center justify-center text-2xl flex-shrink-0">
-              {icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-bold text-base leading-tight">
-                {step?.instruction || 'Continuez tout droit'}
-              </div>
-              <div className="text-white/60 text-sm mt-0.5">
-                {step?.distanceM > 1000
-                  ? `${(step.distanceM / 1000).toFixed(1)} km`
-                  : `${step?.distanceM || 0} m`}
-              </div>
-            </div>
-            <button onClick={onStop}
-              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 flex-shrink-0">
-              ✕
-            </button>
-          </div>
-          <div className="mt-3 max-w-md mx-auto flex items-center gap-3">
-            <div className="flex-1 bg-white/10 rounded-full h-1">
-              <div className="bg-nawiy-green h-1 rounded-full transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="text-xs text-white/50 flex-shrink-0">
-              {navDistM > 1000 ? `${(navDistM / 1000).toFixed(1)} km` : `${navDistM} m`} · {navEtaMin} min
-            </div>
+        <div className="max-w-md mx-auto bg-nawiy-600 text-white rounded-2xl shadow-float px-4 py-3 flex items-center gap-4">
+          <Icon name={turnIcon(step)} size={40} strokeWidth={2.5} className="flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="text-2xl font-bold leading-tight">{fmtDist(step?.distanceM || 0)}</div>
+            <div className="text-base leading-snug line-clamp-2">{step?.instruction || 'Continue tout droit'}</div>
           </div>
         </div>
       </motion.div>
-    </AnimatePresence>
+
+      <motion.div
+        initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-sheet"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="h-1 bg-ink-fill rounded-t-2xl overflow-hidden">
+          <div className="h-full bg-nawiy-green transition-all duration-500" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="max-w-md mx-auto px-4 pt-3 flex items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-2xl font-bold text-nawiy-600 leading-tight">{navEtaMin} min</div>
+            <div className="text-sm text-ink-2">{fmtDist(navDistM)}{arrival && ` · arrivée ${arrival}`}</div>
+          </div>
+          <button onClick={onStop}
+            className="h-12 px-6 bg-red-700 text-white text-base font-semibold rounded-full active:bg-red-800 flex-shrink-0">
+            Quitter
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }
