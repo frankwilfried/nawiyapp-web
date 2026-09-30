@@ -1,1078 +1,326 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
 import { useCityStore } from '../store/cityStore';
 import { useMapStore } from '../store/mapStore';
-import { buildGraph } from '../lib/staticData';
-import { findPath } from '../lib/pathfinder';
+import { findNearestNode, getRoadGeometry, getRouteWithSteps } from '../lib/routing';
 import { applyPeakMultiplier, isPeakHour } from '../lib/geocoder';
-import { getRoadGeometry, findNearestNode, getRouteWithSteps } from '../lib/routing';
-import SplashScreen from '../components/SplashScreen';
-import Onboarding from '../components/Onboarding';
-import { useTaxiPassenger } from '../hooks/useTaxiPassenger';
 import { useSearchHistory } from '../hooks/useSearchHistory';
+import { useTaxiPassenger } from '../hooks/useTaxiPassenger';
 
-const TAXI_PRICE = 3000; // Prix fixe pour toutes les courses
+import SplashScreen   from '../components/SplashScreen';
+import Onboarding     from '../components/Onboarding';
+import NavBanner      from '../components/NavBanner';
+import MapControls    from '../components/MapControls';
+import SearchBar      from '../components/SearchBar';
+import SearchPanel    from '../components/SearchPanel';
+import RouteSheet     from '../components/RouteSheet';
 
-const TRANSPORT_ICONS = {
-  taxi_collectif: '🚕',
-  moto_taxi:      '🛵',
-  minibus:        '🚌',
-  a_pied:         '🚶',
-};
-const TRANSPORT_LABELS = {
-  taxi_collectif: 'Taxi collectif',
-  moto_taxi:      'Moto-taxi',
-  minibus:        'Minibus',
-  a_pied:         'À pied',
-};
-const TYPE_COLORS = {
-  carrefour:  '#E85D3A',
-  quartier:   '#1D9E75',
-  marche:     '#D4A017',
-  universite: '#3B82F6',
-  transport:  '#8B5CF6',
-  autre:      '#6B7280',
-};
+const TAXI_PRICE = 3000;
 
 export default function Home() {
-  const { selectedCity, setCity } = useCityStore();
+  const { selectedCity } = useCityStore();
   const { userPosition, setUserPosition, isFollowingUser, stopFollowingUser, startFollowingUser } = useMapStore();
 
-  const mapContainer   = useRef(null);
-  const map            = useRef(null);
-  const userMarker     = useRef(null);
-  const routeMarkers   = useRef([]);
+  // ── Map refs ──────────────────────────────────────────────────────
+  const mapContainer = useRef(null);
+  const map          = useRef(null);
+  const userMarker   = useRef(null);
+
+  // ── UI state ──────────────────────────────────────────────────────
+  const [showSplash,     setShowSplash]     = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('nawiy_onboarded'));
+  const [searchOpen,     setSearchOpen]     = useState(false);
+  const [sheetOpen,      setSheetOpen]      = useState(false);
+
+  // ── Search state ──────────────────────────────────────────────────
+  const [fromText, setFromText] = useState('');
+  const [toText,   setToText]   = useState('');
+  const [fromNode, setFromNode] = useState(null);
+  const [toNode,   setToNode]   = useState(null);
+  const [fromSugg, setFromSugg] = useState([]);
+  const [toSugg,   setToSugg]   = useState([]);
+  const [activeInput, setActiveInput] = useState('from');
+  const [suggLoading, setSuggLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [result,      setResult]      = useState(null);
+
+  // ── Navigation GPS ────────────────────────────────────────────────
+  const [navActive,  setNavActive]  = useState(false);
+  const [navSteps,   setNavSteps]   = useState([]);
+  const [navStepIdx, setNavStepIdx] = useState(0);
+  const [navDistM,   setNavDistM]   = useState(0);
+  const [navEtaMin,  setNavEtaMin]  = useState(0);
+  const navRouteRef = useRef(null);
+  const spokenRef   = useRef(new Set());
+
+  // ── Taxi state ────────────────────────────────────────────────────
+  const [taxiMode,       setTaxiMode]       = useState('idle');
+  const [taxiRideId,     setTaxiRideId]     = useState(null);
+  const [taxiDriver,     setTaxiDriver]     = useState(null);
+  const [taxiEta,        setTaxiEta]        = useState(null);
+  const [taxiRating,     setTaxiRating]     = useState(0);
+  const [taxiFinalPrice, setTaxiFinalPrice] = useState(null);
   const etaIntervalRef = useRef(null);
 
-  const [showSplash, setShowSplash]       = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('nawiy_onboarded'));
-
   const { recents, favorites, addRecent, toggleFavorite, isFavorite } = useSearchHistory();
-  const [graph, setGraph]             = useState(null);
-  const [nodes, setNodes]             = useState([]);
 
-  // Search
-  const [searchOpen, setSearchOpen]   = useState(false);
-  const [fromText, setFromText]       = useState('');
-  const [toText, setToText]           = useState('');
-  const [fromNode, setFromNode]       = useState(null);
-  const [toNode, setToNode]           = useState(null);
-  const [fromSugg, setFromSugg]       = useState([]);
-  const [toSugg, setToSugg]           = useState([]);
-  const [activeInput, setActiveInput] = useState(null); // 'from' | 'to'
-  const [suggLoading, setSuggLoading] = useState(false);
-
-  // Result
-  const [result, setResult]           = useState(null);
-  const [sheetOpen, setSheetOpen]     = useState(false);
-  const [searchError, setSearchError] = useState('');
-
-  // Navigation GPS
-  const [navActive, setNavActive]   = useState(false);
-  const [navSteps, setNavSteps]     = useState([]);
-  const [navStepIdx, setNavStepIdx] = useState(0);
-  const [navDistM, setNavDistM]     = useState(0);
-  const [navEtaMin, setNavEtaMin]   = useState(0);
-  const navRouteRef                 = useRef(null);
-  const spokenRef                   = useRef(new Set());
-
-  // Taxi inline — modèle Uber
-  // idle → searching → driver_found → driver_arrived → in_progress → completed
-  const [taxiMode, setTaxiMode]       = useState('idle');
-  const [taxiRideId, setTaxiRideId]   = useState(null);
-  const [taxiDriver, setTaxiDriver]   = useState(null);
-  const [taxiEta, setTaxiEta]         = useState(null);   // minutes restantes
-  const [taxiRating, setTaxiRating]   = useState(0);      // note donnée
-  const [taxiFinalPrice, setTaxiFinalPrice] = useState(null);
-
-  const { send: taxiSend, connected: taxiConnected } = useTaxiPassenger({
-    'ride:created': ({ ride }) => setTaxiRideId(ride.id),
-
-    'ride:confirmed': (data) => {
-      setTaxiDriver(data.driver);
-      setTaxiFinalPrice(data.final_price);
-      const eta = data.eta_min || 3;
-      setTaxiEta(eta);
-      setTaxiMode('driver_found');
-
-      // Compte à rebours ETA
+  const { send: taxiSend } = useTaxiPassenger({
+    'ride:created':        ({ ride })  => setTaxiRideId(ride.id),
+    'ride:confirmed':      (data)      => {
+      setTaxiDriver(data.driver); setTaxiFinalPrice(data.final_price);
+      const eta = data.eta_min || 3; setTaxiEta(eta); setTaxiMode('driver_found');
       clearInterval(etaIntervalRef.current);
-      etaIntervalRef.current = setInterval(() => {
-        setTaxiEta(prev => {
-          if (prev <= 1) { clearInterval(etaIntervalRef.current); return 0; }
-          return prev - 1;
-        });
-      }, 8000); // 8s par minute (accéléré pour la démo)
+      etaIntervalRef.current = setInterval(() => setTaxiEta(p => { if (p <= 1) { clearInterval(etaIntervalRef.current); return 0; } return p - 1; }), 8000);
     },
-
-    'ride:driver_arrived': () => {
-      clearInterval(etaIntervalRef.current);
-      setTaxiEta(0);
-      setTaxiMode('driver_arrived');
-      // Course démarre auto après 5s
-      setTimeout(() => setTaxiMode('in_progress'), 5000);
-    },
-
-    'ride:completed': (data) => {
-      setTaxiFinalPrice(data.final_price);
-      setTaxiMode('completed');
-    },
-
-    'ride:cancelled': () => {
-      clearInterval(etaIntervalRef.current);
-      setTaxiMode('idle');
-    },
+    'ride:driver_arrived': ()          => { clearInterval(etaIntervalRef.current); setTaxiEta(0); setTaxiMode('driver_arrived'); setTimeout(() => setTaxiMode('in_progress'), 5000); },
+    'ride:completed':      (data)      => { setTaxiFinalPrice(data.final_price); setTaxiMode('completed'); },
+    'ride:cancelled':      ()          => { clearInterval(etaIntervalRef.current); setTaxiMode('idle'); },
   });
 
-  // Réinitialise à chaque changement de ville
+  // ── Reset on city change ──────────────────────────────────────────
   useEffect(() => {
-    setResult(null);
-    setFromNode(null); setToNode(null);
-    setFromText(''); setToText('');
+    setResult(null); setFromNode(null); setToNode(null); setFromText(''); setToText('');
   }, [selectedCity]);
 
-  // Init carte
+  // ── Map init ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
-
     const city = selectedCity === 'douala'
       ? { center: [9.7085, 4.0511], zoom: 13 }
       : { center: [11.5167, 3.8667], zoom: 13 };
-
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: city.center,
-      zoom: city.zoom,
-      pitch: 30,
-      bearing: 0,
+      center: city.center, zoom: city.zoom, pitch: 30, bearing: 0,
     });
-
     map.current.on('dragstart', () => stopFollowingUser());
-
     return () => { map.current?.remove(); map.current = null; };
   }, []);
 
-  // (points focaux supprimés — données collectées via beta testeurs)
-
-  // GPS utilisateur
+  // ── GPS user position ─────────────────────────────────────────────
   useEffect(() => {
     if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(pos => {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setUserPosition(coords);
       updateNavigation(coords.lat, coords.lng);
-
       if (!userMarker.current && map.current) {
         const el = document.createElement('div');
-        el.innerHTML = `
-          <div style="position:relative;width:20px;height:20px">
-            <div style="position:absolute;inset:0;border-radius:50%;background:#4285F4;border:3px solid white;box-shadow:0 2px 8px rgba(66,133,244,0.5);z-index:2"></div>
-            <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(66,133,244,0.2);animation:pulse 2s infinite"></div>
-          </div>`;
-        userMarker.current = new maplibregl.Marker({ element: el })
-          .setLngLat([coords.lng, coords.lat])
-          .addTo(map.current);
+        el.innerHTML = `<div style="position:relative;width:20px;height:20px"><div style="position:absolute;inset:0;border-radius:50%;background:#4285F4;border:3px solid white;box-shadow:0 2px 8px rgba(66,133,244,0.5);z-index:2"></div><div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(66,133,244,0.2);animation:pulse 2s infinite"></div></div>`;
+        userMarker.current = new maplibregl.Marker({ element: el }).setLngLat([coords.lng, coords.lat]).addTo(map.current);
       } else if (userMarker.current) {
         userMarker.current.setLngLat([coords.lng, coords.lat]);
       }
-
-      if (isFollowingUser && map.current) {
-        map.current.easeTo({ center: [coords.lng, coords.lat], duration: 500 });
-      }
+      if (isFollowingUser && map.current) map.current.easeTo({ center: [coords.lng, coords.lat], duration: 500 });
     }, null, { enableHighAccuracy: true });
-
     return () => navigator.geolocation.clearWatch(watchId);
   }, [isFollowingUser]);
 
-  // Dessine le trajet sur la carte (suit les vraies routes via OSRM)
-  const drawRoute = useCallback(async (path, walkingIntro = null) => {
+  // ── Google Places script ──────────────────────────────────────────
+  const googleLoaded = useRef(false);
+  useEffect(() => {
+    if (googleLoaded.current || window.google) return;
+    googleLoaded.current = true;
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}&libraries=places&language=fr`;
+    s.async = true; document.head.appendChild(s);
+  }, []);
+
+  // ── Search helpers ────────────────────────────────────────────────
+  const suggestDebounce = useRef(null);
+  const suggest = useCallback((val, setter) => {
+    if (!val || val.length < 2) { setter([]); setSuggLoading(false); return; }
+    setSuggLoading(true);
+    clearTimeout(suggestDebounce.current);
+    suggestDebounce.current = setTimeout(() => {
+      const q = val.toLowerCase();
+      const local = []; // nodes not available here; keep empty — Google handles the rest
+      if (!window.google?.maps?.places) { setter(local); setSuggLoading(false); return; }
+      const svc = new window.google.maps.places.AutocompleteService();
+      const opts = { input: val, componentRestrictions: { country: 'cm' }, language: 'fr' };
+      if (userPosition) { opts.location = new window.google.maps.LatLng(userPosition.lat, userPosition.lng); opts.radius = 15000; }
+      svc.getPlacePredictions(opts, (predictions, status) => {
+        if (status !== 'OK' || !predictions) { setter(local); setSuggLoading(false); return; }
+        const remote = predictions.map(p => ({ id: 'gp_' + p.place_id, name: p.structured_formatting.main_text, subtitle: p.structured_formatting.secondary_text, place_id: p.place_id, lat: null, lng: null, type: 'lieu' }));
+        setter([...local, ...remote].slice(0, 7)); setSuggLoading(false);
+      });
+    }, 300);
+  }, [userPosition]);
+
+  const resolvePlaceCoords = useCallback((node, onResolved) => {
+    if (node.lat !== null || !node.place_id) { onResolved(node); return; }
+    const div = document.createElement('div');
+    const svc = new window.google.maps.places.PlacesService(div);
+    svc.getDetails({ placeId: node.place_id, fields: ['geometry'] }, (place, status) => {
+      onResolved(status === 'OK' && place.geometry ? { ...node, lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : node);
+    });
+  }, []);
+
+  const useMyPosition = useCallback(() => {
+    if (!userPosition) { setSearchError('Position GPS non disponible'); return; }
+    // Use coordinates directly as from node
+    setFromText('📍 Ma position');
+    setFromNode({ id: '_gps', name: '📍 Ma position', lat: userPosition.lat, lng: userPosition.lng });
+    setActiveInput('to'); setFromSugg([]);
+  }, [userPosition]);
+
+  // ── Route drawing ─────────────────────────────────────────────────
+  const drawRoute = useCallback(async (waypoints) => {
     if (!map.current) return;
-
-    // Supprime l'ancien tracé
-    ['route-line','route-walk','route-line-bg'].forEach(id => {
-      if (map.current.getLayer(id)) map.current.removeLayer(id);
-    });
-    ['route','route-walk-src'].forEach(id => {
-      if (map.current.getSource(id)) map.current.removeSource(id);
-    });
-
-    // Collecte les waypoints du trajet (départ + tous les points intermédiaires + arrivée)
-    const waypoints = [];
-    if (walkingIntro) waypoints.push({ lat: walkingIntro.fromLat, lng: walkingIntro.fromLng });
-    path.forEach((step, i) => {
-      waypoints.push({ lat: step.from.lat, lng: step.from.lng });
-      if (i === path.length - 1) waypoints.push({ lat: step.to.lat, lng: step.to.lng });
-    });
-
-    // Essaie d'obtenir la géométrie réelle via OSRM
-    let roadCoords = await getRoadGeometry(waypoints, 'driving');
-
-    // Fallback : ligne droite entre waypoints
-    if (!roadCoords) {
-      roadCoords = waypoints.map(p => [p.lng, p.lat]);
-    }
-
-    // Tracé marche à pied (si départ GPS)
-    if (walkingIntro) {
-      const walkCoords = roadCoords.slice(0, Math.ceil(roadCoords.length * 0.15)) || [
-        [walkingIntro.fromLng, walkingIntro.fromLat],
-        [waypoints[1].lng, waypoints[1].lat],
-      ];
-      const walkWaypoints = [
-        { lat: walkingIntro.fromLat, lng: walkingIntro.fromLng },
-        { lat: path[0].from.lat,    lng: path[0].from.lng },
-      ];
-      const walkRoad = await getRoadGeometry(walkWaypoints, 'walking');
-      const wCoords = walkRoad || walkWaypoints.map(p => [p.lng, p.lat]);
-
-      map.current.addSource('route-walk-src', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: wCoords } }
-      });
-      map.current.addLayer({
-        id: 'route-walk',
-        type: 'line',
-        source: 'route-walk-src',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#6B7280', 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.8 }
-      });
-    }
-
-    // Tracé principal — contour blanc + ligne verte
-    map.current.addSource('route', {
-      type: 'geojson',
-      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: roadCoords } }
-    });
-    map.current.addLayer({
-      id: 'route-line-bg',
-      type: 'line', source: 'route',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.6 }
-    });
-    map.current.addLayer({
-      id: 'route-line',
-      type: 'line', source: 'route',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#1D9E75', 'line-width': 5, 'line-opacity': 1 }
-    });
-
-    // Zoom sur tout le tracé
-    const allCoords = roadCoords;
-    const bounds = allCoords.reduce(
-      (b, c) => b.extend(c),
-      new maplibregl.LngLatBounds(allCoords[0], allCoords[0])
-    );
+    ['route-line','route-line-bg','route-walk'].forEach(id => { if (map.current.getLayer(id)) map.current.removeLayer(id); });
+    ['route','route-walk-src'].forEach(id => { if (map.current.getSource(id)) map.current.removeSource(id); });
+    const coords = await getRoadGeometry(waypoints, 'driving') || waypoints.map(p => [p.lng, p.lat]);
+    map.current.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
+    map.current.addLayer({ id: 'route-line-bg', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.6 } });
+    map.current.addLayer({ id: 'route-line',    type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#1D9E75', 'line-width': 5 } });
+    const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
     map.current.fitBounds(bounds, { padding: 80, duration: 800 });
   }, []);
 
-  // Utilise la position GPS comme départ
-  const useMyPosition = () => {
-    if (!userPosition) { setSearchError('Position GPS non disponible'); return; }
-    const nearest = findNearestNode(userPosition.lat, userPosition.lng, nodes);
-    if (!nearest) return;
-    setFromText('📍 Ma position');
-    setFromNode({ ...nearest.node, _walkFrom: userPosition, _walkMin: nearest.walkMinutes, _walkDist: nearest.distanceKm });
-    setActiveInput('to');
-    setFromSugg([]);
-  };
+  // ── Search ────────────────────────────────────────────────────────
+  const handleSearch = useCallback(async () => {
+    setSearchError('');
+    if (!fromNode || !toNode) { setSearchError('Sélectionne départ et destination'); return; }
+    if (!fromNode.lat || !toNode.lat) { setSearchError('Coordonnées manquantes, réessaie'); return; }
+    setSearchOpen(false); setSheetOpen(true);
+    const dLat = toNode.lat - fromNode.lat, dLng = toNode.lng - fromNode.lng;
+    const distKm = Math.sqrt(dLat*dLat + dLng*dLng) * 111;
+    setResult({ total_duration_min: Math.round(distKm / 0.5), total_price_fcfa: null, distance_km: Math.round(distKm * 10) / 10, path: [] });
+    drawRoute([{ lat: fromNode.lat, lng: fromNode.lng }, { lat: toNode.lat, lng: toNode.lng }]);
+  }, [fromNode, toNode, drawRoute]);
 
-  // ── Navigation GPS ───────────────────────────────────────────────
+  // ── Navigation GPS ────────────────────────────────────────────────
   const speak = (text) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'fr-FR'; u.rate = 1.05; u.volume = 1;
-    window.speechSynthesis.speak(u);
+    u.lang = 'fr-FR'; u.rate = 1.05; window.speechSynthesis.speak(u);
   };
 
   const haversineM = (lat1, lng1, lat2, lng2) => {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
     const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   };
 
-  const startNavigation = async () => {
+  const startNavigation = useCallback(async () => {
     if (!fromNode || !toNode) return;
     const start = userPosition || { lat: fromNode.lat, lng: fromNode.lng };
-    const route = await getRouteWithSteps(
-      [start, { lat: toNode.lat, lng: toNode.lng }], 'driving'
-    );
-    if (!route) { alert('Impossible de calculer l\'itinéraire'); return; }
-    navRouteRef.current = route;
-    setNavSteps(route.steps);
-    setNavStepIdx(0);
-    setNavDistM(route.distanceM);
-    setNavEtaMin(Math.round(route.durationS / 60));
-    setNavActive(true);
-    setSheetOpen(false);
-    spokenRef.current = new Set();
-    startFollowingUser();
-    if (route.steps[0]) speak(route.steps[0].instruction);
-  };
+    const route = await getRouteWithSteps([start, { lat: toNode.lat, lng: toNode.lng }], 'driving');
+    if (!route) { alert("Impossible de calculer l'itinéraire"); return; }
+    navRouteRef.current = route; setNavSteps(route.steps); setNavStepIdx(0);
+    setNavDistM(route.distanceM); setNavEtaMin(Math.round(route.durationS / 60));
+    setNavActive(true); setSheetOpen(false); spokenRef.current = new Set();
+    startFollowingUser(); if (route.steps[0]) speak(route.steps[0].instruction);
+  }, [fromNode, toNode, userPosition, startFollowingUser]);
 
-  const stopNavigation = () => {
-    setNavActive(false);
-    window.speechSynthesis?.cancel();
-    stopFollowingUser();
-  };
+  const stopNavigation = useCallback(() => {
+    setNavActive(false); window.speechSynthesis?.cancel(); stopFollowingUser();
+  }, [stopFollowingUser]);
 
-  // Mise à jour navigation à chaque position GPS
   const updateNavigation = useCallback((lat, lng) => {
     if (!navActive || !navRouteRef.current) return;
     const steps = navRouteRef.current.steps;
     setNavStepIdx(prev => {
       let idx = prev;
-      // Avance les étapes si on est à moins de 30m du prochain point
-      while (idx < steps.length - 1) {
-        const [sLng, sLat] = steps[idx].location || [lng, lat];
-        if (haversineM(lat, lng, sLat, sLng) < 30) idx++;
-        else break;
-      }
-      // Annonce vocale si nouvelle étape
-      if (idx !== prev && steps[idx] && !spokenRef.current.has(idx)) {
-        spokenRef.current.add(idx);
-        const dist = steps[idx].distanceM;
-        const distTxt = dist > 1000 ? `dans ${(dist/1000).toFixed(1)} km` : `dans ${dist} mètres`;
-        speak(`${distTxt}, ${steps[idx].instruction}`);
-      }
-      // Arrivée
-      if (idx === steps.length - 1 && !spokenRef.current.has('arrived')) {
-        spokenRef.current.add('arrived');
-        speak('Vous êtes arrivé à destination');
-        setTimeout(() => stopNavigation(), 4000);
-      }
+      while (idx < steps.length - 1) { const [sLng, sLat] = steps[idx].location || [lng, lat]; if (haversineM(lat, lng, sLat, sLng) < 30) idx++; else break; }
+      if (idx !== prev && steps[idx] && !spokenRef.current.has(idx)) { spokenRef.current.add(idx); speak(`dans ${steps[idx].distanceM > 1000 ? `${(steps[idx].distanceM/1000).toFixed(1)} km` : `${steps[idx].distanceM} mètres`}, ${steps[idx].instruction}`); }
+      if (idx === steps.length - 1 && !spokenRef.current.has('arrived')) { spokenRef.current.add('arrived'); speak('Vous êtes arrivé à destination'); setTimeout(() => stopNavigation(), 4000); }
       return idx;
     });
-    // Distance restante à vol d'oiseau vers destination
-    if (toNode) {
-      const distLeft = haversineM(lat, lng, toNode.lat, toNode.lng);
-      setNavDistM(Math.round(distLeft));
-      setNavEtaMin(Math.max(1, Math.round(distLeft / 500))); // ~30 km/h
-    }
-  }, [navActive, toNode]);
+    if (toNode) { const d = haversineM(lat, lng, toNode.lat, toNode.lng); setNavDistM(Math.round(d)); setNavEtaMin(Math.max(1, Math.round(d / 500))); }
+  }, [navActive, toNode, stopNavigation]);
 
-  // Recherche itinéraire
-  const handleSearch = async () => {
-    setSearchError('');
-    if (!fromNode || !toNode) { setSearchError('Sélectionne départ et destination'); return; }
-    if (!fromNode.lat || !toNode.lat) { setSearchError('Coordonnées manquantes, réessaie'); return; }
-
-    setSearchOpen(false);
-    setSheetOpen(true);
-
-    // Tracé OSRM entre les 2 points
-    const waypoints = [
-      { lat: fromNode.lat, lng: fromNode.lng },
-      { lat: toNode.lat,   lng: toNode.lng   },
-    ];
-    const coords = await getRoadGeometry(waypoints, 'driving');
-
-    // Distance à vol d'oiseau en km
-    const dLat = toNode.lat - fromNode.lat;
-    const dLng = toNode.lng - fromNode.lng;
-    const distKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
-    const durationMin = Math.round(distKm / 0.5); // ~30 km/h en ville
-
-    const augmented = {
-      total_duration_min: durationMin,
-      total_price_fcfa:   null,
-      distance_km:        Math.round(distKm * 10) / 10,
-      path:               [],
-    };
-    setResult(augmented);
-
-    // Dessine le tracé
-    if (map.current) {
-      ['route-line','route-line-bg','route-walk'].forEach(id => { if (map.current.getLayer(id)) map.current.removeLayer(id); });
-      ['route','route-walk-src'].forEach(id => { if (map.current.getSource(id)) map.current.removeSource(id); });
-
-      const roadCoords = coords || waypoints.map(p => [p.lng, p.lat]);
-      map.current.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: roadCoords } } });
-      map.current.addLayer({ id: 'route-line-bg', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.6 } });
-      map.current.addLayer({ id: 'route-line',    type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#1D9E75', 'line-width': 5 } });
-
-      const bounds = roadCoords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(roadCoords[0], roadCoords[0]));
-      map.current.fitBounds(bounds, { padding: 80, duration: 800 });
-    }
-  };
-
-  // Charge le script Google Maps une seule fois
-  const googleLoaded = useRef(false);
-  useEffect(() => {
-    if (googleLoaded.current || window.google) return;
-    googleLoaded.current = true;
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}&libraries=places&language=fr`;
-    script.async = true;
-    document.head.appendChild(script);
-  }, []);
-
-  const suggestDebounce = useRef(null);
-  const suggest = (val, setter) => {
-    if (!val || val.length < 2) { setter([]); setSuggLoading(false); return; }
-    setSuggLoading(true);
-    clearTimeout(suggestDebounce.current);
-    suggestDebounce.current = setTimeout(() => {
-      // D'abord les nœuds locaux (transport connu)
-      const q = val.toLowerCase();
-      const local = nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 3);
-
-      // Puis Google Places
-      if (!window.google?.maps?.places) {
-        setter(local);
-        setSuggLoading(false);
-        return;
-      }
-      const svc = new window.google.maps.places.AutocompleteService();
-      // Biais GPS uniquement si position connue, sinon tout le Cameroun
-      const predOptions = {
-        input: val,
-        componentRestrictions: { country: 'cm' },
-        language: 'fr',
-      };
-      if (userPosition) {
-        predOptions.location = new window.google.maps.LatLng(userPosition.lat, userPosition.lng);
-        predOptions.radius = 15000;
-      }
-      svc.getPlacePredictions(predOptions, (predictions, status) => {
-        if (status !== 'OK' || !predictions) { setter(local); setSuggLoading(false); return; }
-        const google = predictions.map(p => ({
-          id:        'gp_' + p.place_id,
-          name:      p.structured_formatting.main_text,
-          subtitle:  p.structured_formatting.secondary_text,
-          place_id:  p.place_id,
-          lat:       null,
-          lng:       null,
-          type:      'lieu',
-        }));
-        const seen = new Set(local.map(n => n.name.toLowerCase()));
-        const merged = [...local, ...google.filter(g => !seen.has(g.name.toLowerCase()))].slice(0, 7);
-        setter(merged);
-        setSuggLoading(false);
-      });
-    }, 300);
-  };
-
-  // Résoudre les coordonnées d'un lieu Google Places
-  const resolvePlaceCoords = (node, onResolved) => {
-    if (node.lat !== null || !node.place_id) { onResolved(node); return; }
-    const mapDiv = document.createElement('div');
-    const svc = new window.google.maps.places.PlacesService(mapDiv);
-    svc.getDetails({ placeId: node.place_id, fields: ['geometry'] }, (place, status) => {
-      if (status === 'OK' && place.geometry) {
-        onResolved({ ...node, lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
-      } else {
-        onResolved(node);
-      }
-    });
-  };
-
-  const clearRoute = () => {
-    setResult(null); setSheetOpen(false);
-    setFromNode(null); setToNode(null);
-    setFromText(''); setToText('');
-    if (map.current?.getLayer('route-line')) map.current.removeLayer('route-line');
-    if (map.current?.getSource('route')) map.current.removeSource('route');
-  };
-
-  const shareWhatsApp = () => {
-    const lines = [
-      `🗺️ *NawiyApp* — Itinéraire`,
-      `📍 ${fromText} → ${toText}`,
-      `⏱ ~${result.total_duration_min} min | 📏 ${result.distance_km} km`,
-      ``,
-      `Trouvé avec NawiyApp 🚕`,
-    ];
-    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
-  };
-
+  // ── Taxi actions ──────────────────────────────────────────────────
   const requestTaxi = () => {
     if (!fromNode || !toNode) return;
     setTaxiMode('searching');
-    taxiSend('ride:request', {
-      from_lat: fromNode.lat, from_lng: fromNode.lng, from_name: fromText,
-      to_lat:   toNode.lat,   to_lng:   toNode.lng,   to_name:  toText,
-      proposed_price: TAXI_PRICE,
-      city_slug: selectedCity,
-    });
+    taxiSend('ride:request', { from_lat: fromNode.lat, from_lng: fromNode.lng, from_name: fromText, to_lat: toNode.lat, to_lng: toNode.lng, to_name: toText, proposed_price: TAXI_PRICE, city_slug: selectedCity });
   };
 
   const cancelTaxi = () => {
     clearInterval(etaIntervalRef.current);
     if (taxiRideId) taxiSend('ride:cancel', { ride_id: taxiRideId });
-    setTaxiMode('idle');
-    setTaxiRideId(null);
-    setTaxiDriver(null);
-    setTaxiEta(null);
-    setTaxiFinalPrice(null);
-    setTaxiRating(0);
+    setTaxiMode('idle'); setTaxiRideId(null); setTaxiDriver(null); setTaxiEta(null); setTaxiFinalPrice(null); setTaxiRating(0);
   };
 
-  const submitRating = (score) => {
-    setTaxiRating(score);
-    setTimeout(() => cancelTaxi(), 1500);
+  const clearRoute = () => {
+    setResult(null); setSheetOpen(false); setFromNode(null); setToNode(null); setFromText(''); setToText('');
+    if (map.current?.getLayer('route-line')) map.current.removeLayer('route-line');
+    if (map.current?.getSource('route')) map.current.removeSource('route');
+  };
+
+  const shareWhatsApp = () => {
+    const lines = [`🗺️ *NawiyApp* — Itinéraire`, `📍 ${fromText} → ${toText}`, `⏱ ~${result.total_duration_min} min | 📏 ${result.distance_km} km`, ``, `Trouvé avec NawiyApp 🚕`];
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
   };
 
   return (
     <>
-      <style>{`
-        @keyframes pulse { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.5);opacity:0} }
-        .nawiy-popup .maplibregl-popup-content { border-radius:12px; padding:10px 14px; box-shadow:0 4px 20px rgba(0,0,0,0.15); border:none; }
-        .nawiy-popup .maplibregl-popup-tip { border-top-color:white; }
-        .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { display:none; }
-      `}</style>
+      <style>{`@keyframes pulse{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.5);opacity:0}}.maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left{display:none}`}</style>
 
-      {/* Onboarding — premier lancement uniquement */}
       <AnimatePresence>
         {showOnboarding && !showSplash && (
-          <Onboarding onDone={() => {
-            localStorage.setItem('nawiy_onboarded', '1');
-            setShowOnboarding(false);
-          }} />
+          <Onboarding onDone={() => { localStorage.setItem('nawiy_onboarded', '1'); setShowOnboarding(false); }} />
         )}
       </AnimatePresence>
 
-      {/* Splash */}
       <AnimatePresence>
         {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       </AnimatePresence>
 
-      {/* Carte plein écran */}
       <div ref={mapContainer} className="fixed inset-0 w-full h-full" />
 
-      {/* ── Bandeau navigation ── */}
-      <AnimatePresence>
-        {navActive && navSteps.length > 0 && (
-          <motion.div
-            initial={{ y: -120 }} animate={{ y: 0 }} exit={{ y: -120 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed top-0 left-0 right-0 z-50"
-          >
-            <div className="bg-nawiy-dark text-white px-4 pt-10 pb-3 shadow-2xl">
-              <div className="flex items-start gap-3 max-w-md mx-auto">
-                <div className="w-12 h-12 rounded-2xl bg-nawiy-green flex items-center justify-center text-2xl flex-shrink-0">
-                  {navSteps[navStepIdx]?.type === 'arrive' ? '🏁' :
-                   navSteps[navStepIdx]?.instruction?.includes('gauche') ? '⬅️' :
-                   navSteps[navStepIdx]?.instruction?.includes('droite') ? '➡️' : '⬆️'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-base leading-tight">
-                    {navSteps[navStepIdx]?.instruction || 'Continuez tout droit'}
-                  </div>
-                  <div className="text-white/60 text-sm mt-0.5">
-                    {navSteps[navStepIdx]?.distanceM > 1000
-                      ? `${(navSteps[navStepIdx].distanceM / 1000).toFixed(1)} km`
-                      : `${navSteps[navStepIdx]?.distanceM || 0} m`}
-                  </div>
-                </div>
-                <button onClick={stopNavigation}
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 flex-shrink-0">
-                  ✕
-                </button>
-              </div>
-              {/* Barre de progression */}
-              <div className="mt-3 max-w-md mx-auto flex items-center gap-3">
-                <div className="flex-1 bg-white/10 rounded-full h-1">
-                  <div className="bg-nawiy-green h-1 rounded-full transition-all"
-                    style={{ width: `${Math.max(5, 100 - (navDistM / (navRouteRef.current?.distanceM || 1)) * 100)}%` }} />
-                </div>
-                <div className="text-xs text-white/50 flex-shrink-0">
-                  {navDistM > 1000 ? `${(navDistM/1000).toFixed(1)} km` : `${navDistM} m`} · {navEtaMin} min
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <NavBanner navActive={navActive} navSteps={navSteps} navStepIdx={navStepIdx} navDistM={navDistM} navEtaMin={navEtaMin} navRouteRef={navRouteRef} onStop={stopNavigation} />
 
-      {/* ── Barre de recherche flottante ── */}
+      {/* Floating search bar */}
       <div className="fixed top-0 left-0 right-0 z-20 p-3 pointer-events-none">
         <div className="pointer-events-auto">
-
-          {/* Barre principale */}
-          {!result ? (
-            <div
-              className="bg-white rounded-2xl shadow-xl mx-auto max-w-md cursor-pointer overflow-hidden"
-              onClick={() => { setSearchOpen(true); setActiveInput('from'); }}
-            >
-              <div className="flex items-center gap-3 px-4 py-3.5">
-                <div className="w-8 h-8 rounded-full bg-nawiy-light flex items-center justify-center flex-shrink-0">
-                  <span className="text-nawiy-green font-bold text-sm">N</span>
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-800">
-                    {fromNode ? fromNode.name : "D'où tu pars ?"}
-                  </div>
-                  {fromNode && (
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      → {toNode ? toNode.name : 'Où vas-tu ?'}
-                    </div>
-                  )}
-                  {!fromNode && <div className="text-xs text-gray-400 mt-0.5">Trouver un itinéraire</div>}
-                </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-            </div>
-          ) : (
-            /* Barre résumé résultat */
-            <div className="bg-nawiy-green text-white rounded-2xl shadow-xl mx-auto max-w-md px-4 py-3 flex items-center gap-3">
-              <div className="flex-1">
-                <div className="font-semibold text-sm">{fromText} → {toText}</div>
-                <div className="text-xs text-white/80 mt-0.5">
-                  {result.total_duration_min} min • {result.total_price_fcfa} FCFA
-                  {result.walkingIntro && <span className="opacity-70"> • 🚶 {result.walkingIntro.minutes} min à pied</span>}
-                </div>
-              </div>
-              <button onClick={clearRoute} className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition">
-                <span className="text-sm">✕</span>
-              </button>
-            </div>
-          )}
+          <SearchBar result={result} fromText={fromText} toText={toText} fromNode={fromNode} toNode={toNode}
+            onOpen={(input) => { setSearchOpen(true); setActiveInput(input); }} onClear={clearRoute} />
         </div>
       </div>
 
-      {/* ── Boutons flottants droite ── */}
-      <div className="fixed right-4 bottom-48 z-20 flex flex-col gap-2">
-        <button
-          onClick={() => {
-            startFollowingUser();
-            if (userPosition && map.current) {
-              map.current.easeTo({ center: [userPosition.lng, userPosition.lat], zoom: 15, duration: 600 });
-            }
-          }}
-          className="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition"
-          title="Ma position"
-        >
-          <svg className="w-5 h-5 text-nawiy-green" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2a7 7 0 017 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 017-7zm0 9.5A2.5 2.5 0 1012 6.5a2.5 2.5 0 000 5z"/>
-          </svg>
-        </button>
+      <MapControls mapRef={map} userPosition={userPosition} />
 
-        <a href="/driver"
-          className="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition text-lg"
-          title="Mode Chauffeur collectif"
-        >🚌</a>
+      {isPeakHour() && (
+        <motion.div initial={{ y: -40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -40, opacity: 0 }}
+          className="fixed top-28 left-1/2 -translate-x-1/2 z-20 bg-orange-500 text-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold">
+          ⚠️ Heure de pointe — durées majorées
+        </motion.div>
+      )}
 
-        <a href="/taxi/driver"
-          className="w-11 h-11 bg-nawiy-dark rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition text-lg"
-          title="Mode Chauffeur Taxi"
-        >🚕</a>
-      </div>
-
-
-      {/* ── Heure de pointe ── */}
-      <AnimatePresence>
-        {isPeakHour() && (
-          <motion.div initial={{ y: -40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -40, opacity: 0 }}
-            className="fixed top-28 left-1/2 -translate-x-1/2 z-20 bg-orange-500 text-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold"
-          >
-            ⚠️ Heure de pointe — durées majorées
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Panel de recherche (plein écran) ── */}
       <AnimatePresence>
         {searchOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: '100%' }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-0 z-40 bg-white flex flex-col"
-          >
-            {/* Header */}
-            <div className="flex items-center gap-3 px-4 pt-12 pb-4 border-b border-gray-100">
-              <button onClick={() => setSearchOpen(false)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                <span className="text-gray-600">←</span>
-              </button>
-              <h2 className="font-semibold text-gray-800">Trouver un itinéraire</h2>
-            </div>
-
-            {/* Inputs */}
-            <div className="px-4 py-4 flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-nawiy-green" />
-                  <input autoFocus={activeInput === 'from'}
-                    value={fromText} placeholder="Point de départ..."
-                    onFocus={() => setActiveInput('from')}
-                    onChange={e => { setFromText(e.target.value); setFromNode(null); suggest(e.target.value, setFromSugg); }}
-                    className="w-full bg-gray-50 rounded-xl pl-9 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-nawiy-green/30"
-                  />
-                  {fromText
-                    ? <button onClick={() => { setFromText(''); setFromNode(null); setFromSugg([]); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">✕</button>
-                    : <button onClick={useMyPosition} title="Utiliser ma position GPS"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-nawiy-green/10 hover:bg-nawiy-green/20 flex items-center justify-center transition text-base">
-                        📍
-                      </button>
-                  }
-                </div>
-                {/* Raccourci "Ma position" ancré sous le champ — toujours visible si départ non défini */}
-                {!fromNode && (
-                  <button onClick={useMyPosition}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-nawiy-light hover:bg-green-100 transition text-left w-full">
-                    <span className="text-base leading-none">📍</span>
-                    <div>
-                      <span className="text-sm font-semibold text-nawiy-green">Ma position</span>
-                      <span className="text-xs text-gray-400 ml-1">
-                        {userPosition ? '· GPS actif' : '· GPS requis'}
-                      </span>
-                    </div>
-                  </button>
-                )}
-              </div>
-
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-400" />
-                <input
-                  value={toText} placeholder="Destination..."
-                  onFocus={() => setActiveInput('to')}
-                  onChange={e => { setToText(e.target.value); setToNode(null); suggest(e.target.value, setToSugg); }}
-                  className="w-full bg-gray-50 rounded-xl pl-9 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-nawiy-green/30"
-                />
-                {toText && <button onClick={() => { setToText(''); setToNode(null); setToSugg([]); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">✕</button>}
-              </div>
-
-              {searchError && <p className="text-red-500 text-sm px-1">{searchError}</p>}
-
-              <button onClick={handleSearch} disabled={!fromNode || !toNode}
-                className="bg-nawiy-green text-white rounded-xl py-3.5 font-semibold disabled:opacity-40 hover:bg-nawiy-dark transition"
-              >
-                Rechercher l'itinéraire
-              </button>
-            </div>
-
-            {/* Suggestions dynamiques */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-
-              {/* Résultats de recherche (apparaissent dès 1 caractère) */}
-              {(() => {
-                const sugg = activeInput === 'from' ? fromSugg : toSugg;
-                const currentText = activeInput === 'from' ? fromText : toText;
-
-                if (currentText && currentText !== '📍 Ma position' && sugg.length === 0) {
-                  if (suggLoading) return (
-                    <div className="text-center py-8">
-                      <div className="w-6 h-6 border-2 border-nawiy-green/30 border-t-nawiy-green rounded-full animate-spin mx-auto mb-3" />
-                      <p className="text-gray-400 text-sm">Recherche en cours…</p>
-                    </div>
-                  );
-                  return (
-                    <div className="text-center py-8">
-                      <p className="text-gray-400 text-sm">Aucun résultat pour "{currentText}"</p>
-                      <p className="text-gray-300 text-xs mt-1">Essaie : Akwa, Bonaberi, Deido...</p>
-                    </div>
-                  );
-                }
-
-                if (sugg.length > 0) {
-                  return (
-                    <>
-                      <p className="text-xs text-gray-400 font-semibold uppercase mb-2 px-1">
-                        {sugg.length} résultat{sugg.length > 1 ? 's' : ''}
-                      </p>
-                      {sugg.map(n => (
-                        <button key={n.id}
-                          onClick={() => {
-                            resolvePlaceCoords(n, resolved => {
-                              addRecent(resolved);
-                              if (activeInput === 'from') { setFromText(resolved.name); setFromNode(resolved); setFromSugg([]); setActiveInput('to'); }
-                              else { setToText(resolved.name); setToNode(resolved); setToSugg([]); }
-                            });
-                          }}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition"
-                        >
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: (TYPE_COLORS[n.type] || '#6B7280') + '20' }}>
-                            <div className="w-3 h-3 rounded-full" style={{ background: TYPE_COLORS[n.type] || '#6B7280' }} />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-sm font-medium text-gray-800">{n.name}</div>
-                            <div className="text-xs text-gray-400">{n.subtitle || n.type}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </>
-                  );
-                }
-
-                // Aucun texte → favoris + récents
-                const hasFav = favorites.length > 0;
-                const hasRec = recents.length > 0;
-                const renderPlaceRow = (place, icon) => (
-                  <div key={place.id} className="flex items-center gap-2 w-full">
-                    <button
-                      onClick={() => {
-                        addRecent(place);
-                        if (activeInput === 'from') { setFromText(place.name); setFromNode(place); setFromSugg([]); setActiveInput('to'); }
-                        else { setToText(place.name); setToNode(place); setToSugg([]); }
-                      }}
-                      className="flex-1 flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition text-left"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">{icon}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-800 truncate">{place.name}</div>
-                        <div className="text-xs text-gray-400 truncate">{place.subtitle || place.type || ''}</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => toggleFavorite(place)}
-                      className="w-8 h-8 flex items-center justify-center text-base hover:scale-110 transition-transform flex-shrink-0"
-                      title={isFavorite(place.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                    >
-                      {isFavorite(place.id) ? '⭐' : '☆'}
-                    </button>
-                  </div>
-                );
-
-                if (!hasFav && !hasRec) return (
-                  <div className="text-center py-10">
-                    <div className="text-3xl mb-3">🔍</div>
-                    <p className="text-gray-400 text-sm">
-                      {activeInput === 'from' ? 'Tape ton point de départ' : 'Tape ta destination'}
-                    </p>
-                    <p className="text-gray-300 text-xs mt-1">Ex : Akwa, Bonaberi, Marché Central...</p>
-                  </div>
-                );
-
-                return (
-                  <div className="flex flex-col gap-1">
-                    {hasFav && (
-                      <>
-                        <p className="text-xs text-gray-400 font-semibold uppercase mb-1 px-1">⭐ Favoris</p>
-                        {favorites.map(p => renderPlaceRow(p, '⭐'))}
-                      </>
-                    )}
-                    {hasRec && (
-                      <>
-                        <p className="text-xs text-gray-400 font-semibold uppercase mt-3 mb-1 px-1">🕐 Récents</p>
-                        {recents.map(p => renderPlaceRow(p, '🕐'))}
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          </motion.div>
+          <SearchPanel
+            open={searchOpen} onClose={() => setSearchOpen(false)}
+            activeInput={activeInput} setActiveInput={setActiveInput}
+            fromText={fromText} setFromText={setFromText} fromNode={fromNode} setFromNode={setFromNode}
+            toText={toText} setToText={setToText} toNode={toNode} setToNode={setToNode}
+            fromSugg={fromSugg} setFromSugg={setFromSugg} toSugg={toSugg} setToSugg={setToSugg}
+            suggLoading={suggLoading} searchError={searchError}
+            userPosition={userPosition} recents={recents} favorites={favorites}
+            isFavorite={isFavorite} toggleFavorite={toggleFavorite}
+            onSuggest={suggest} onResolvePlaceCoords={resolvePlaceCoords}
+            onUseMyPosition={useMyPosition} onSearch={handleSearch} addRecent={addRecent}
+          />
         )}
       </AnimatePresence>
 
-      {/* ── Bottom Sheet résultat ── */}
       <AnimatePresence>
         {sheetOpen && result && (
-          <motion.div
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 35, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col"
-          >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
-            </div>
-
-            {/* Header trajet */}
-            <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
-              <div>
-                <h3 className="font-bold text-gray-900 text-base">{fromText} → {toText}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{result.distance_km ? `${result.distance_km} km` : ''}</p>
-              </div>
-              <button onClick={() => { setSheetOpen(false); setTaxiMode('idle'); }}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
-            </div>
-
-            {/* ── Deux options côte à côte ── */}
-            <div className="px-5 pb-4 flex-shrink-0">
-              <div className="grid grid-cols-2 gap-3">
-
-                {/* Option 1 : Transport informel */}
-                <div className="bg-nawiy-light rounded-2xl p-3">
-                  <div className="text-xs text-nawiy-dark font-semibold mb-2">🚌 Transport informel</div>
-                  <div className="flex items-baseline gap-1 mb-0.5">
-                    <span className="text-xl font-bold text-nawiy-green">~{result.total_duration_min}</span>
-                    <span className="text-xs text-gray-500">min</span>
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {result.total_price_fcfa ? `${result.total_price_fcfa} FCFA` : 'Prix : données en cours'}
-                  </div>
-                  <div className="flex gap-1.5 mt-2">
-                    <button onClick={startNavigation}
-                      className="flex-1 bg-nawiy-green text-white text-xs font-bold py-1.5 rounded-xl hover:bg-nawiy-dark transition active:scale-95">
-                      🧭 Naviguer
-                    </button>
-                    <button onClick={shareWhatsApp}
-                      className="flex-1 bg-white text-green-600 text-xs font-medium py-1.5 rounded-xl border border-green-200 hover:bg-green-50 transition">
-                      📤 Partager
-                    </button>
-                  </div>
-                </div>
-
-                {/* Option 2 : Taxi course */}
-                <div className="bg-gray-900 rounded-2xl p-3">
-                  <div className="text-xs text-white/60 font-semibold mb-2">🚕 Taxi course</div>
-
-                  {/* ── idle ── */}
-                  {taxiMode === 'idle' && (
-                    <>
-                      <div className="flex items-baseline gap-1 mb-0.5">
-                        <span className="text-xl font-bold text-white">{TAXI_PRICE.toLocaleString()}</span>
-                        <span className="text-xs text-white/50">FCFA</span>
-                      </div>
-                      <div className="text-xs text-white/40 mb-2.5">Trajet direct · Prix fixe</div>
-                      <button onClick={requestTaxi}
-                        className="w-full bg-nawiy-green text-white text-xs font-bold py-2 rounded-xl hover:bg-green-500 transition active:scale-95">
-                        Demander →
-                      </button>
-                    </>
-                  )}
-
-                  {/* ── searching ── */}
-                  {taxiMode === 'searching' && (
-                    <div className="flex flex-col items-center py-1 gap-2">
-                      <div className="relative w-10 h-10 flex items-center justify-center">
-                        <div className="absolute inset-0 rounded-full bg-nawiy-green/20 animate-ping" />
-                        <div className="absolute inset-1 rounded-full bg-nawiy-green/30 animate-ping" style={{animationDelay:'0.3s'}} />
-                        <span className="relative text-lg z-10">🚕</span>
-                      </div>
-                      <div className="text-white text-xs font-semibold text-center">Recherche un chauffeur...</div>
-                      <button onClick={cancelTaxi} className="text-white/40 text-xs hover:text-white/70 transition">Annuler</button>
-                    </div>
-                  )}
-
-                  {/* ── driver_found ── */}
-                  {taxiMode === 'driver_found' && taxiDriver && (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-nawiy-green/20 flex items-center justify-center text-base flex-shrink-0">🧑🏾</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white text-xs font-bold truncate">{taxiDriver.name}</div>
-                          <div className="text-white/50 text-xs">{taxiDriver.plate} · ⭐ {taxiDriver.rating}</div>
-                        </div>
-                      </div>
-                      <div className="bg-nawiy-green/10 rounded-lg px-2 py-1 flex items-center justify-between">
-                        <span className="text-white/60 text-xs">Arrive dans</span>
-                        <span className="text-nawiy-green font-bold text-sm">{taxiEta} min</span>
-                      </div>
-                      <div className="text-xs text-white/40 text-center">{taxiDriver.vehicle_model}</div>
-                      <div className="flex gap-1.5 mt-0.5">
-                        <a href={`tel:${taxiDriver.phone}`}
-                          className="flex-1 bg-white/10 text-white text-xs py-1.5 rounded-lg text-center hover:bg-white/20 transition">
-                          📞 Appeler
-                        </a>
-                        <button onClick={cancelTaxi}
-                          className="flex-1 bg-red-500/20 text-red-300 text-xs py-1.5 rounded-lg hover:bg-red-500/30 transition">
-                          ✕ Annuler
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── driver_arrived ── */}
-                  {taxiMode === 'driver_arrived' && taxiDriver && (
-                    <div className="flex flex-col items-center gap-2 py-1">
-                      <div className="w-10 h-10 rounded-full bg-nawiy-green/20 flex items-center justify-center text-xl">🚕</div>
-                      <div className="text-nawiy-green text-xs font-bold text-center">Chauffeur arrivé !</div>
-                      <div className="text-white/60 text-xs text-center">{taxiDriver.name} vous attend</div>
-                      <div className="text-white/40 text-xs text-center italic">{taxiDriver.plate}</div>
-                    </div>
-                  )}
-
-                  {/* ── in_progress ── */}
-                  {taxiMode === 'in_progress' && (
-                    <div className="flex flex-col items-center gap-2 py-1">
-                      <div className="relative w-10 h-10">
-                        <div className="absolute inset-0 rounded-full bg-nawiy-green/30 animate-pulse" />
-                        <div className="absolute inset-0 flex items-center justify-center text-xl">🚗</div>
-                      </div>
-                      <div className="text-white text-xs font-bold text-center">Course en cours</div>
-                      <div className="text-white/50 text-xs text-center">{fromText} → {toText}</div>
-                    </div>
-                  )}
-
-                  {/* ── completed — notation ── */}
-                  {taxiMode === 'completed' && (
-                    <div className="flex flex-col gap-2">
-                      <div className="text-nawiy-green text-xs font-bold text-center">✅ Course terminée !</div>
-                      <div className="bg-white/5 rounded-lg p-2 text-center">
-                        <div className="text-white text-sm font-bold">{(taxiFinalPrice || TAXI_PRICE).toLocaleString()} FCFA</div>
-                        <div className="text-white/40 text-xs">Prix final</div>
-                      </div>
-                      {taxiRating === 0 ? (
-                        <>
-                          <div className="text-white/60 text-xs text-center">Note ta course</div>
-                          <div className="flex justify-center gap-1">
-                            {[1,2,3,4,5].map(star => (
-                              <button key={star} onClick={() => submitRating(star)}
-                                className="text-xl hover:scale-125 transition-transform">
-                                ⭐
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-center">
-                          <div className="text-nawiy-green text-xs font-semibold">Merci pour ta note ! {'⭐'.repeat(taxiRating)}</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ── Étapes transport informel ── */}
-            <div className="overflow-y-auto flex-1 px-5 pb-4">
-              <p className="text-xs text-gray-400 font-semibold uppercase mb-3">Détail de l'itinéraire</p>
-              <div className="flex flex-col">
-
-                {/* Étape de marche si départ GPS */}
-                {result.walkingIntro && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center flex-shrink-0 w-8">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base">🚶</div>
-                      <div className="w-0.5 h-5 bg-gray-200 my-1" />
-                    </div>
-                    <div className="flex-1 pb-3">
-                      <div className="text-sm font-medium text-gray-800">📍 Ma position</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        À pied · {result.walkingIntro.minutes} min · {(result.walkingIntro.distanceKm * 1000).toFixed(0)} m
-                        <span className="ml-1 text-gray-300">→ {result.walkingIntro.toName}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {result.path.map((step, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="flex flex-col items-center flex-shrink-0 w-8">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-base"
-                        style={{ background: TYPE_COLORS[step.from.type] + '20' }}>
-                        {TRANSPORT_ICONS[step.transport]}
-                      </div>
-                      {i < result.path.length - 1 && <div className="w-0.5 h-5 bg-gray-200 my-1" />}
-                    </div>
-                    <div className="flex-1 pb-3">
-                      <div className="text-sm font-medium text-gray-800">{step.from.name}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {TRANSPORT_LABELS[step.transport]} · {step.duration_min} min · {step.price_fcfa} FCFA
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                  </div>
-                  <div className="text-sm font-semibold text-gray-800">{toText}</div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          <RouteSheet
+            open={sheetOpen} result={result} fromText={fromText} toText={toText}
+            taxiMode={taxiMode} taxiDriver={taxiDriver} taxiEta={taxiEta}
+            taxiFinalPrice={taxiFinalPrice} taxiRating={taxiRating}
+            onClose={() => { setSheetOpen(false); setTaxiMode('idle'); }}
+            onNavigate={startNavigation} onShare={shareWhatsApp}
+            onRequestTaxi={requestTaxi} onCancelTaxi={cancelTaxi}
+            onRate={(score) => { setTaxiRating(score); setTimeout(() => cancelTaxi(), 1500); }}
+          />
         )}
       </AnimatePresence>
     </>
