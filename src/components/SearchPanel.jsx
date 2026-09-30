@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { searchFormSchema } from '../lib/schemas';
 
 const TYPE_COLORS = {
   carrefour:  '#E85D3A',
@@ -183,7 +184,11 @@ export default function SearchPanel({
 
         {searchError && <p className="text-red-500 text-sm px-1">{searchError}</p>}
 
-        <button onClick={onSearch} disabled={!fromNode || !toNode}
+        <button onClick={() => {
+          const result = searchFormSchema.safeParse({ fromNode, toNode });
+          if (!result.success) { return; } // bouton disabled si invalide
+          onSearch();
+        }} disabled={!fromNode || !toNode || !searchFormSchema.safeParse({ fromNode, toNode }).success}
           className="bg-nawiy-green text-white rounded-xl py-3.5 font-semibold disabled:opacity-40 hover:bg-nawiy-dark transition">
           Rechercher l'itinéraire
         </button>

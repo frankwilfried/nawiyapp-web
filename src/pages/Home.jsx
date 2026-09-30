@@ -4,6 +4,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { useCityStore } from '../store/cityStore';
+import { taxiRequestSchema } from '../lib/schemas';
 import { useMapStore } from '../store/mapStore';
 import { findNearestNode, getRoadGeometry, getRouteWithSteps } from '../lib/routing';
 import { applyPeakMultiplier, isPeakHour } from '../lib/geocoder';
@@ -237,8 +238,11 @@ export default function Home() {
   // ── Taxi actions ──────────────────────────────────────────────────
   const requestTaxi = () => {
     if (!fromNode || !toNode) return;
+    const payload = { from_lat: fromNode.lat, from_lng: fromNode.lng, from_name: fromText, to_lat: toNode.lat, to_lng: toNode.lng, to_name: toText, proposed_price: TAXI_PRICE, city_slug: selectedCity };
+    const parsed = taxiRequestSchema.safeParse(payload);
+    if (!parsed.success) { console.warn('[taxi] payload invalide', parsed.error.issues); return; }
     setTaxiMode('searching');
-    taxiSend('ride:request', { from_lat: fromNode.lat, from_lng: fromNode.lng, from_name: fromText, to_lat: toNode.lat, to_lng: toNode.lng, to_name: toText, proposed_price: TAXI_PRICE, city_slug: selectedCity });
+    taxiSend('ride:request', parsed.data);
   };
 
   const cancelTaxi = () => {
