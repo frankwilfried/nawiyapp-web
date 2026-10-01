@@ -6,10 +6,16 @@
 
 // Tarifs en FCFA — à ajuster selon le marché
 export const CATEGORIES = {
-  eco:     { label: 'Nawiy Éco',     base: 500, perKm: 250, min: 1000, step: 100, seats: 4 },
-  confort: { label: 'Nawiy Confort', base: 800, perKm: 350, min: 1500, step: 100, seats: 4 },
-  moto:    { label: 'Nawiy Moto',    base: 200, perKm: 150, min: 300,  step: 50,  seats: 1 },
+  eco:     { label: 'Nawiy Éco',     base: 500, perKm: 250, min: 1000, step: 100, seats: 4, cancelFee: 500 },
+  confort: { label: 'Nawiy Confort', base: 800, perKm: 350, min: 1500, step: 100, seats: 4, cancelFee: 700 },
+  moto:    { label: 'Nawiy Moto',    base: 200, perKm: 150, min: 300,  step: 50,  seats: 1, cancelFee: 200 },
 };
+
+// Commission NawiyApp sur chaque course réalisée
+export const COMMISSION_RATE = 0.10;
+
+// Attente gratuite du chauffeur au point de prise en charge, avant frais d'annulation
+export const FREE_WAIT_MIN = 5;
 
 // Rapport moyen distance par la route / distance à vol d'oiseau en ville
 export const ROAD_FACTOR = 1.3;
@@ -52,4 +58,17 @@ export function offerBounds(category, recommended) {
 export function etaMinutes(category, distanceKm) {
   const speed = CITY_SPEED_KMH[category] || 20;
   return Math.max(1, Math.round((distanceKm * ROAD_FACTOR / speed) * 60));
+}
+
+/** Commission NawiyApp (arrondie au franc) sur le prix d'une course. */
+export const commissionFor = (price) => Math.round(Math.max(0, price) * COMMISSION_RATE);
+
+/**
+ * Frais si le passager annule (ou ne vient pas) alors que le chauffeur l'attend
+ * depuis plus de FREE_WAIT_MIN minutes. 0 sinon.
+ */
+export function cancellationFee(category, arrivedAt, now = Date.now()) {
+  if (!arrivedAt || !CATEGORIES[category]) return 0;
+  const waitedMin = (now - new Date(arrivedAt).getTime()) / 60000;
+  return waitedMin >= FREE_WAIT_MIN ? CATEGORIES[category].cancelFee : 0;
 }
