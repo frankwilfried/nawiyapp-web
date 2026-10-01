@@ -3,6 +3,7 @@
  * Reconnexion automatique + file d'attente si WS pas encore ouvert
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { getFreshToken } from '../store/authStore';
 
 const WS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1')
   .replace('http', 'ws')
@@ -47,21 +48,23 @@ export function useTaxiPassenger(onEvent = {}) {
       const socket = new WebSocket(WS_URL);
       ws.current = socket;
 
-      socket.onopen = () => {
+      const sendAnon = () => socket.send(JSON.stringify({ event: 'passenger:anon', data: { clientId } }));
+      // La file d'attente part seulement une fois l'identification confirmée par le serveur
+      const flush = () => { while (pendingRef.current.length > 0) socket.send(pendingRef.current.shift()); };
+
+      socket.onopen = async () => {
         if (!activeRef.current) { socket.close(); return; }
-        setConnected(true);
-
-        // Auth anonyme
-        socket.send(JSON.stringify({ event: 'passenger:anon', data: { clientId } }));
-
-        // Vide la file d'attente
-        while (pendingRef.current.length > 0) {
-          socket.send(pendingRef.current.shift());
-        }
+        // Connecté : les courses sont rattachées au compte (historique, reçus) ; sinon session anonyme
+        const token = await getFreshToken();
+        if (socket.readyState !== WebSocket.OPEN) return;
+        if (token) socket.send(JSON.stringify({ event: 'auth', data: { token } }));
+        else sendAnon();
       };
 
       socket.onmessage = (e) => {
         let msg; try { msg = JSON.parse(e.data); } catch { return; }
+        if (msg.event === 'auth:ok' || msg.event === 'anon:ok') { setConnected(true); flush(); }
+        if (msg.event === 'auth:error') { sendAnon(); return; }
         const h = handlersRef.current[msg.event];
         if (h) h(msg.data);
       };

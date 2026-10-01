@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getFreshToken } from '../store/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -11,25 +12,17 @@ client.interceptors.request.use(config => {
   return config;
 });
 
-// Gère l'expiration du token
+// Jeton d'accès expiré : on le renouvelle une fois puis on rejoue la requête
 client.interceptors.response.use(
   res => res,
   async error => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && original && !original._retry && localStorage.getItem('nawiy_refresh')) {
       original._retry = true;
-      const refreshToken = localStorage.getItem('nawiy_refresh');
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-          localStorage.setItem('nawiy_token', data.token);
-          original.headers.Authorization = `Bearer ${data.token}`;
-          return client(original);
-        } catch (_) {
-          localStorage.removeItem('nawiy_token');
-          localStorage.removeItem('nawiy_refresh');
-          window.location.href = '/login';
-        }
+      const token = await getFreshToken();
+      if (token) {
+        original.headers.Authorization = `Bearer ${token}`;
+        return client(original);
       }
     }
     return Promise.reject(error);
