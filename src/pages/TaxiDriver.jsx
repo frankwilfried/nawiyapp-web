@@ -10,7 +10,7 @@ import { useTaxiSocket } from '../hooks/useTaxiSocket';
 import apiClient from '../api/client';
 import Icon from '../components/Icon';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { CATEGORIES, FREE_WAIT_MIN } from '../lib/pricing';
+import { CATEGORIES, FREE_WAIT_MIN, offerBounds } from '../lib/pricing';
 import DriverBalance from '../components/DriverBalance';
 import ChatSheet from '../components/ChatSheet';
 import { DRIVER_REPLIES } from '../lib/chat';
@@ -24,13 +24,21 @@ const PAY_LABELS = { cash: 'Espèces', momo: 'MTN MoMo', orange_money: 'Orange M
 const fcfa = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const mapsLink = (p) => `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving`;
 
-function RequestCard({ ride, onAccept, onDecline, onExpire }) {
+// Contre-offres proposées : 1 à 3 paliers au-dessus de l'offre, dans la limite autorisée
+function counterPrices(ride) {
+  const b = offerBounds(ride.category, ride.recommended_price || ride.price);
+  const base = Math.max(ride.price, ride.recommended_price && ride.price < ride.recommended_price ? ride.recommended_price - b.step : ride.price);
+  return [1, 2, 3].map(k => base + k * b.step).filter(p => p > ride.price && p <= b.max);
+}
+
+function RequestCard({ ride, onAccept, onDecline, onExpire, onCounter }) {
   const [left, setLeft] = useState(REQUEST_TTL_S);
+  const countered = ride.counter;   // { price, until } une fois la contre-offre envoyée
   useEffect(() => {
     const t = setInterval(() => setLeft(s => s - 1), 1000);
     return () => clearInterval(t);
   }, []);
-  useEffect(() => { if (left <= 0) onExpire(ride.ride_id); }, [left, onExpire, ride.ride_id]);
+  useEffect(() => { if (left <= 0 && !countered) onExpire(ride.ride_id); }, [left, onExpire, ride.ride_id, countered]);
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }}
@@ -67,16 +75,37 @@ function RequestCard({ ride, onAccept, onDecline, onExpire }) {
             <div className="text-base font-semibold text-ink truncate mt-2">{ride.to.name}</div>
           </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <button onClick={() => onDecline(ride)}
-            className="flex-1 h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg active:bg-ink-line">
-            Refuser
-          </button>
-          <button onClick={() => onAccept(ride)}
-            className="flex-[2] h-12 bg-ink text-white text-base font-semibold rounded-lg active:bg-gray-800">
-            Accepter · {left} s
-          </button>
-        </div>
+        {countered ? (
+          <p className="mt-4 text-sm bg-ink-fill text-ink rounded-lg px-3 py-2.5" role="status">
+            Tu as proposé <span className="font-semibold">{fcfa(countered.price)}</span> · en attente de la réponse du passager
+          </p>
+        ) : (
+          <>
+            {counterPrices(ride).length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-ink-2 mb-1.5">Ou propose ton prix :</p>
+                <div className="flex gap-2">
+                  {counterPrices(ride).map(p => (
+                    <button key={p} onClick={() => onCounter(ride, p)}
+                      className="flex-1 h-10 rounded-lg border border-ink-line text-sm font-semibold text-ink active:bg-ink-fill">
+                      {p.toLocaleString('fr-FR')} F
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => onDecline(ride)}
+                className="flex-1 h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg active:bg-ink-line">
+                Refuser
+              </button>
+              <button onClick={() => onAccept(ride)}
+                className="flex-[2] h-12 bg-ink text-white text-base font-semibold rounded-lg active:bg-gray-800">
+                Accepter · {left} s
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );
@@ -265,6 +294,15 @@ export default function TaxiDriver() {
     // Une nouvelle offre (passager qui augmente) remplace l'ancienne carte
     'ride:new':  (ride) => setRequests(prev => [ride, ...prev.filter(r => r.ride_id !== ride.ride_id)]),
     'ride:taken': ({ ride_id }) => setRequests(prev => prev.filter(r => r.ride_id !== ride_id)),
+    'ride:counter_sent': ({ ride_id, price, expires_in }) => {
+      setRequests(prev => prev.map(r => (r.ride_id === ride_id ? { ...r, counter: { price } } : r)));
+      // Sans réponse du passager, la carte disparaît à l'expiration de la contre-offre
+      setTimeout(() => setRequests(prev => prev.filter(r => !(r.ride_id === ride_id && r.counter))), expires_in * 1000);
+    },
+    'ride:counter_declined': ({ ride_id }) => {
+      setRequests(prev => prev.filter(r => r.ride_id !== ride_id));
+      showToast('Le passager a refusé ta proposition');
+    },
     'ride:you_accepted': (ride) => { setActiveRide(ride); setRequests([]); setPassenger({}); setChat({ open: false, unread: 0, messages: [] }); },
     'chat:message': (m) => {
       setChat(c => ({
@@ -509,6 +547,7 @@ export default function TaxiDriver() {
                 <AnimatePresence>
                   {requests.map(r => <RequestCard key={`${r.ride_id}-${r.price}`} ride={r} onExpire={decline}
                     onDecline={(ride) => decline(ride.ride_id)}
+                    onCounter={(ride, price) => send('ride:counter', { ride_id: ride.ride_id, price })}
                     onAccept={(ride) => send('ride:accept_uber', { ride_id: ride.ride_id })} />)}
                 </AnimatePresence>
               </div>

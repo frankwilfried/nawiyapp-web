@@ -99,6 +99,7 @@ export default function Home() {
   const [taxiEta,      setTaxiEta]      = useState(null);
   const [taxiNotified, setTaxiNotified] = useState(null);
   const [taxiDeclines, setTaxiDeclines] = useState(null); // { declined, notified, all_declined }
+  const [counters, setCounters] = useState([]);           // contre-offres des chauffeurs
   const [raising,      setRaising]      = useState(false);
   const [driverPos,    setDriverPos]    = useState(null);
   const [paymentState, setPaymentState] = useState(null);
@@ -127,8 +128,16 @@ export default function Home() {
     'ride:notified': ({ drivers_notified }) => setTaxiNotified(drivers_notified),
     // Offre façon inDrive : refus des chauffeurs, hausse de l'offre
     'ride:declined': (d) => setTaxiDeclines(d),
-    'ride:raised':   ({ price }) => { setTaxiRide(r => r && { ...r, price }); setTaxiDeclines(null); setRaising(false); },
+    'ride:raised':   ({ price }) => { setTaxiRide(r => r && { ...r, price }); setTaxiDeclines(null); setRaising(false); setCounters([]); },
+    // Contre-offre d'un chauffeur : valable 30 s
+    'ride:counter_offer': (c) => {
+      const until = Date.now() + c.expires_in * 1000;
+      setCounters(list => [...list.filter(x => x.driver_id !== c.driver_id), { ...c, until }]);
+      navigator.vibrate?.(120);
+      setTimeout(() => setCounters(list => list.filter(x => !(x.driver_id === c.driver_id && x.until === until))), c.expires_in * 1000);
+    },
     'ride:confirmed': (data) => {
+      setCounters([]);
       setTaxiDriver(data.driver); setTaxiEta(data.eta_min ?? null); setTaxiMode('driver_found');
       setTaxiSignal(data.signal || null);
       if (data.driver?.lat != null) setDriverPos({ lat: data.driver.lat, lng: data.driver.lng });
@@ -499,7 +508,7 @@ export default function Home() {
   const resetTaxi = () => {
     setTaxiMode('idle'); setTaxiRide(null); setTaxiDriver(null); setTaxiEta(null);
     setTaxiNotified(null); setDriverPos(null); setPaymentState(null); setPickup(null);
-    setTaxiDeclines(null); setRaising(false);
+    setTaxiDeclines(null); setRaising(false); setCounters([]);
     setTaxiSignal(null); setPassengerNote(''); setSignalOpen(false); setShareUrl(null);
     setChatMessages([]); setChatUnread(0); setChatOpen(false);
   };
@@ -569,6 +578,9 @@ export default function Home() {
   const taxiOffer = {
     declines: taxiDeclines, nextOffer, raising,
     onRaise: () => { if (!nextOffer || !taxiRide?.id) return; setRaising(true); taxiSend('ride:raise', { ride_id: taxiRide.id, price: nextOffer }); },
+    counters,
+    onAcceptCounter: (c) => taxiSend('ride:accept_counter', { ride_id: taxiRide?.id, driver_id: c.driver_id }),
+    onDeclineCounter: (c) => { taxiSend('ride:decline_counter', { ride_id: taxiRide?.id, driver_id: c.driver_id }); setCounters(l => l.filter(x => x.driver_id !== c.driver_id)); },
   };
 
   const taxiFind = {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import Icon from './Icon';
 import { CATEGORIES } from '../lib/pricing';
 import PushPrompt from './PushPrompt';
@@ -107,6 +107,41 @@ function Actions({ driver, onShare, onSafety, chat }) {
   );
 }
 
+// Proposition d'un chauffeur (façon inDrive) : prix, chauffeur, arrivée, 30 s pour répondre
+function CounterOffer({ c, onAccept, onDecline }) {
+  const [left, setLeft] = useState(() => Math.max(0, Math.round((c.until - Date.now()) / 1000)));
+  useEffect(() => {
+    const t = setInterval(() => setLeft(Math.max(0, Math.round((c.until - Date.now()) / 1000))), 1000);
+    return () => clearInterval(t);
+  }, [c.until]);
+  return (
+    <motion.li layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 30 }}
+      className="rounded-xl border border-ink-line p-3">
+      <div className="flex items-center gap-3">
+        <span className="w-10 h-10 rounded-full bg-ink-fill text-ink font-semibold flex items-center justify-center flex-shrink-0" aria-hidden="true">
+          {initials(c.driver?.name)}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-ink truncate flex items-center gap-1">
+            {c.driver?.name || 'Chauffeur'}
+            {c.driver?.rating && <span className="text-sm font-normal text-ink-2 inline-flex items-center gap-0.5"><Icon name="star" size={13} filled /> {c.driver.rating}</span>}
+          </p>
+          <p className="text-sm text-ink-2 truncate">
+            {[c.driver?.vehicle_model, c.driver?.vehicle_color].filter(Boolean).join(' ')}{c.eta_min != null ? ` · à ${c.eta_min} min` : ''}
+          </p>
+        </div>
+        <span className="text-lg font-bold text-ink whitespace-nowrap">{c.price.toLocaleString('fr-FR')} F</span>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onDecline} className="flex-1 h-11 bg-ink-fill text-ink text-sm font-semibold rounded-lg active:bg-ink-line">Refuser</button>
+        <button onClick={onAccept} className="flex-[2] h-11 bg-ink text-white text-sm font-semibold rounded-lg active:bg-gray-800">
+          Accepter · {left} s
+        </button>
+      </div>
+    </motion.li>
+  );
+}
+
 // Suivi de course façon Uber : fond blanc, typo noire, une action principale par état
 export default function TaxiWidget({
   taxiMode, taxiRide, taxiDriver, taxiEta, taxiNotified, connected,
@@ -138,6 +173,21 @@ export default function TaxiWidget({
                 <> · conseillé {taxiRide.recommended_price.toLocaleString('fr-FR')} F</>
               )}
             </p>
+          )}
+
+          {offer.counters?.length > 0 && (
+            <section aria-label="Propositions des chauffeurs">
+              <p className="text-sm font-semibold text-ink mb-2">
+                {offer.counters.length > 1 ? `${offer.counters.length} chauffeurs te proposent un prix` : 'Un chauffeur te propose un prix'}
+              </p>
+              <ul className="flex flex-col gap-2">
+                <AnimatePresence>
+                  {offer.counters.map(c => (
+                    <CounterOffer key={c.driver_id} c={c} onAccept={() => offer.onAcceptCounter(c)} onDecline={() => offer.onDeclineCounter(c)} />
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </section>
           )}
 
           {/* Refus des chauffeurs (façon inDrive) : proposer d'augmenter l'offre */}
