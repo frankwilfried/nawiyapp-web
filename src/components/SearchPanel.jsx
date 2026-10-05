@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import Icon from './Icon';
 import { placeIcon, PLACE_TYPE_LABELS } from '../lib/placeTypes';
+import { t } from '../i18n';
 
 export default function SearchPanel({
   open, onClose,
@@ -55,13 +56,13 @@ export default function SearchPanel({
         <span className="min-w-0">
           <span className="block text-base text-ink truncate">{place.name}</span>
           <span className="block text-sm text-ink-2 truncate">
-            {place.subtitle || PLACE_TYPE_LABELS[place.type] || ''}
+            {place.subtitle || t(PLACE_TYPE_LABELS[place.type] || '')}
           </span>
         </span>
       </button>
       {withFavorite && (
         <button onClick={() => toggleFavorite(place)}
-          aria-label={isFavorite(place.id) ? `Retirer ${place.name} des favoris` : `Ajouter ${place.name} aux favoris`}
+          aria-label={isFavorite(place.id) ? t('Retirer {name} des favoris', { name: place.name }) : t('Ajouter {name} aux favoris', { name: place.name })}
           aria-pressed={isFavorite(place.id)}
           className="w-11 h-11 flex items-center justify-center text-ink flex-shrink-0 active:bg-ink-fill rounded-full">
           <Icon name="star" size={20} filled={isFavorite(place.id)} />
@@ -75,20 +76,20 @@ export default function SearchPanel({
       if (suggLoading) return (
         <div className="py-10 flex flex-col items-center gap-3" role="status">
           <div className="w-6 h-6 border-2 border-ink-fill border-t-ink rounded-full animate-spin" />
-          <p className="text-ink-2 text-sm">Recherche en cours…</p>
+          <p className="text-ink-2 text-sm">{t('Recherche en cours…')}</p>
         </div>
       );
       return (
         <div className="py-10 text-center">
-          <p className="text-ink text-base">Aucun résultat pour « {currentText} »</p>
-          <p className="text-ink-2 text-sm mt-1">Essaie un quartier ou un carrefour : Akwa, Ndokoti, Bonabéri…</p>
+          <p className="text-ink text-base">{t('Aucun résultat pour')} « {currentText} »</p>
+          <p className="text-ink-2 text-sm mt-1">{t('Essaie un quartier ou un carrefour : Akwa, Ndokoti, Bonabéri…')}</p>
         </div>
       );
     }
 
     if (sugg.length > 0) {
       return (
-        <ul aria-label="Suggestions">
+        <ul aria-label={t('Suggestions')}>
           {sugg.map(n => placeRow(n))}
         </ul>
       );
@@ -105,8 +106,8 @@ export default function SearchPanel({
                   <Icon name="navigation" size={18} />
                 </span>
                 <span>
-                  <span className="block text-base text-ink">Ma position actuelle</span>
-                  <span className="block text-sm text-ink-2">{userPosition ? 'GPS actif' : 'Active la localisation de ton téléphone'}</span>
+                  <span className="block text-base text-ink">{t('Ma position actuelle')}</span>
+                  <span className="block text-sm text-ink-2">{userPosition ? t('GPS actif') : t('Active la localisation de ton téléphone')}</span>
                 </span>
               </button>
             </li>
@@ -115,20 +116,20 @@ export default function SearchPanel({
 
         {favorites.length > 0 && (
           <section className="mb-4">
-            <h3 className="text-sm font-semibold text-ink mt-2 mb-1">Favoris</h3>
+            <h3 className="text-sm font-semibold text-ink mt-2 mb-1">{t('Favoris')}</h3>
             <ul>{favorites.map(p => placeRow(p, { icon: 'star', withFavorite: true }))}</ul>
           </section>
         )}
         {recents.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold text-ink mt-2 mb-1">Récents</h3>
+            <h3 className="text-sm font-semibold text-ink mt-2 mb-1">{t('Récents')}</h3>
             <ul>{recents.map(p => placeRow(p, { icon: 'clock', withFavorite: true }))}</ul>
           </section>
         )}
         {!favorites.length && !recents.length && (
           <div className="py-10 text-center">
-            <p className="text-ink text-base">{activeInput === 'from' ? 'D\'où tu pars ?' : 'Où vas-tu ?'}</p>
-            <p className="text-ink-2 text-sm mt-1">Un quartier, un marché, un carrefour…</p>
+            <p className="text-ink text-base">{activeInput === 'from' ? t("D'où tu pars ?") : t('Où vas-tu ?')}</p>
+            <p className="text-ink-2 text-sm mt-1">{t('Un quartier, un marché, un carrefour…')}</p>
           </div>
         )}
       </>
@@ -146,11 +147,11 @@ export default function SearchPanel({
     >
       <div className="px-4 pb-3 shadow-[0_1px_0_#E2E2E2]" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={onClose} aria-label="Retour à la carte"
+          <button onClick={onClose} aria-label={t('Retour à la carte')}
             className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-ink active:bg-ink-fill">
             <Icon name="arrowLeft" size={24} />
           </button>
-          <h2 id="search-title" className="text-lg font-semibold text-ink">Ton trajet</h2>
+          <h2 id="search-title" className="text-lg font-semibold text-ink">{t('Ton trajet')}</h2>
         </div>
 
         <div className="flex gap-3">
@@ -162,13 +163,13 @@ export default function SearchPanel({
           <div className="flex-1 flex flex-col gap-2">
             <div className="relative">
               <input ref={fromInputRef} autoFocus={activeInput === 'from'} value={fromText}
-                aria-label="Point de départ" placeholder="Point de départ"
+                aria-label={t('Point de départ')} placeholder={t('Point de départ')}
                 onFocus={() => setActiveInput('from')}
                 onChange={e => { setFromText(e.target.value); setFromNode(null); onSuggest(e.target.value, setFromSugg); }}
                 className={inputCls} />
               {fromText && (
                 <button onClick={() => { setFromText(''); setFromNode(null); setFromSugg([]); setActiveInput('from'); fromInputRef.current?.focus(); }}
-                  aria-label="Effacer le départ"
+                  aria-label={t('Effacer le départ')}
                   className="absolute right-0 top-0 w-11 h-11 flex items-center justify-center text-ink-2">
                   <Icon name="x" size={18} />
                 </button>
@@ -176,13 +177,13 @@ export default function SearchPanel({
             </div>
             <div className="relative">
               <input ref={toInputRef} autoFocus={activeInput === 'to'} value={toText}
-                aria-label="Destination" placeholder="Où vas-tu ?"
+                aria-label={t('Destination')} placeholder={t('Où vas-tu ?')}
                 onFocus={() => setActiveInput('to')}
                 onChange={e => { setToText(e.target.value); setToNode(null); onSuggest(e.target.value, setToSugg); }}
                 className={inputCls} />
               {toText && (
                 <button onClick={() => { setToText(''); setToNode(null); setToSugg([]); setActiveInput('to'); toInputRef.current?.focus(); }}
-                  aria-label="Effacer la destination"
+                  aria-label={t('Effacer la destination')}
                   className="absolute right-0 top-0 w-11 h-11 flex items-center justify-center text-ink-2">
                   <Icon name="x" size={18} />
                 </button>
@@ -192,7 +193,7 @@ export default function SearchPanel({
         </div>
 
         {typedButNotChosen && sugg.length > 0 && (
-          <p className="text-sm text-ink-2 mt-2 pl-5">Choisis un lieu dans la liste</p>
+          <p className="text-sm text-ink-2 mt-2 pl-5">{t('Choisis un lieu dans la liste')}</p>
         )}
         {searchError && <p className="text-sm text-red-700 mt-2 pl-5" role="alert">{searchError}</p>}
       </div>

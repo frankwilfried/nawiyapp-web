@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { useLangStore } from './i18n';
 import Home          from './pages/Home';
 import DriverMode    from './pages/DriverMode';
 import Admin         from './pages/Admin';
@@ -49,6 +51,9 @@ function Layout() {
   );
 }
 
+// Changer de langue recrée l'interface : tous les textes passent dans la nouvelle langue
 export default function App() {
-  return <Layout />;
+  const lang = useLangStore(st => st.lang);
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  return <Layout key={lang} />;
 }

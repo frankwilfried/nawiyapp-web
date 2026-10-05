@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import Icon from './Icon';
+import { t } from '../i18n';
 
 const TABS = [
   { path: '/',            icon: 'map',   label: 'Carte'       },
@@ -14,7 +15,7 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav aria-label="Navigation principale"
+    <nav aria-label={t('Navigation principale')}
       className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-ink-line"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="flex max-w-md mx-auto">
@@ -27,7 +28,7 @@ export default function BottomNav() {
                 ${active ? 'bg-nawiy-light text-nawiy-600' : 'text-ink-2'}`}>
                 <Icon name={tab.icon} size={22} />
               </span>
-              <span className={`text-xs ${active ? 'font-semibold text-ink' : 'text-ink-2'}`}>{tab.label}</span>
+              <span className={`text-xs ${active ? 'font-semibold text-ink' : 'text-ink-2'}`}>{t(tab.label)}</span>
             </button>
           );
         })}

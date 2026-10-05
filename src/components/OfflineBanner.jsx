@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Icon from './Icon';
 import { useOnline } from '../hooks/useOnline';
+import { t } from '../i18n';
 
 /**
  * Pastille hors ligne en haut à droite, sous la barre de recherche : le détail (ce qui marche encore)
@@ -27,8 +28,8 @@ export default function OfflineBanner() {
           style={{ top: 'calc(env(safe-area-inset-top) + 76px)' }}>
           <Icon name="wifiOff" size={16} className="flex-shrink-0 mt-0.5" />
           <span>
-            <span className="font-semibold">Hors ligne</span>
-            {expanded && <span> · itinéraires disponibles, taxis et recherche d'adresses en attente de connexion</span>}
+            <span className="font-semibold">{t('Hors ligne')}</span>
+            {expanded && <span> · {t("itinéraires disponibles, taxis et recherche d'adresses en attente de connexion")}</span>}
           </span>
         </motion.button>
       )}

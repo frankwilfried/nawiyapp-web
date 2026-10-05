@@ -4,11 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { accountApi } from '../api/account.api';
 import Icon from './Icon';
+import { t } from '../i18n';
 
 // Numéros d'urgence au Cameroun
 const EMERGENCY = [
-  { label: 'la police', number: '117' },
-  { label: 'les sapeurs-pompiers', number: '118' },
+  { label: 'Appeler la police', number: '117' },
+  { label: 'Appeler les sapeurs-pompiers', number: '118' },
 ];
 
 // SMS groupé : Android accepte « ?body= », iPhone « &body= »
@@ -24,12 +25,12 @@ const smsHref = (phones, body) => {
 export default function SafetySheet({ shareText, shareUrl, onClose }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const { data: contacts = [] } = useQuery({ queryKey: ['emergency-contacts'], queryFn: accountApi.contacts, enabled: isAuthenticated });
-  const message = [shareText, shareUrl && `Suivre en direct : ${shareUrl}`].filter(Boolean).join('\n');
+  const message = [shareText, shareUrl && `${t('Suivre en direct :')} ${shareUrl}`].filter(Boolean).join('\n');
   const row = 'w-full flex items-center gap-4 py-3 border-b border-ink-line text-left active:bg-ink-fill -mx-2 px-2 rounded-lg';
 
   const share = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: 'Ma course NawiyApp', text: shareText, url: shareUrl || undefined }); return; }
+      try { await navigator.share({ title: t('Ma course NawiyApp'), text: shareText, url: shareUrl || undefined }); return; }
       catch (err) { if (err?.name === 'AbortError') return; }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
@@ -44,18 +45,18 @@ export default function SafetySheet({ shareText, shareUrl, onClose }) {
         className="w-full max-w-md bg-white rounded-t-2xl px-4 pt-4"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center justify-between mb-1">
-          <h2 id="safety-title" className="text-xl font-bold text-ink">Sécurité</h2>
-          <button onClick={onClose} aria-label="Fermer" className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-ink-2 active:bg-ink-fill">
+          <h2 id="safety-title" className="text-xl font-bold text-ink">{t('Sécurité')}</h2>
+          <button onClick={onClose} aria-label={t('Fermer')} className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-ink-2 active:bg-ink-fill">
             <Icon name="x" size={20} />
           </button>
         </div>
-        <p className="text-sm text-ink-2 mb-2">Vérifie toujours la plaque avant de monter, et ne donne ton code qu'au bon chauffeur.</p>
+        <p className="text-sm text-ink-2 mb-2">{t("Vérifie toujours la plaque avant de monter, et ne donne ton code qu'au bon chauffeur.")}</p>
 
         <button onClick={share} className={row}>
           <span className="w-10 h-10 rounded-full bg-ink-fill text-ink flex items-center justify-center"><Icon name="share" size={18} /></span>
           <span>
-            <span className="block text-base text-ink">Partager mon trajet</span>
-            <span className="block text-sm text-ink-2">{shareUrl ? 'Lien de suivi en direct, chauffeur et plaque' : 'Chauffeur, plaque et destination'}</span>
+            <span className="block text-base text-ink">{t('Partager mon trajet')}</span>
+            <span className="block text-sm text-ink-2">{shareUrl ? t('Lien de suivi en direct, chauffeur et plaque') : t('Chauffeur, plaque et destination')}</span>
           </span>
         </button>
 
@@ -63,16 +64,16 @@ export default function SafetySheet({ shareText, shareUrl, onClose }) {
           <a href={smsHref(contacts.map(c => c.phone), message)} className={row}>
             <span className="w-10 h-10 rounded-full bg-ink-fill text-ink flex items-center justify-center"><Icon name="message" size={18} /></span>
             <span>
-              <span className="block text-base text-ink">Prévenir mes contacts</span>
-              <span className="block text-sm text-ink-2">SMS à {contacts.map(c => c.name).join(', ')}</span>
+              <span className="block text-base text-ink">{t('Prévenir mes contacts')}</span>
+              <span className="block text-sm text-ink-2">{t('SMS à {names}', { names: contacts.map(c => c.name).join(', ') })}</span>
             </span>
           </a>
         ) : (
           <Link to={isAuthenticated ? '/compte/urgence' : '/login?next=/compte/urgence'} className={row}>
             <span className="w-10 h-10 rounded-full bg-ink-fill text-ink flex items-center justify-center"><Icon name="users" size={18} /></span>
             <span>
-              <span className="block text-base text-ink">Ajouter des contacts d'urgence</span>
-              <span className="block text-sm text-ink-2">{isAuthenticated ? 'Pour les prévenir en un geste' : 'Connecte-toi pour les enregistrer'}</span>
+              <span className="block text-base text-ink">{t("Ajouter des contacts d'urgence")}</span>
+              <span className="block text-sm text-ink-2">{isAuthenticated ? t('Pour les prévenir en un geste') : t('Connecte-toi pour les enregistrer')}</span>
             </span>
           </Link>
         )}
@@ -80,7 +81,7 @@ export default function SafetySheet({ shareText, shareUrl, onClose }) {
         {EMERGENCY.map(e => (
           <a key={e.number} href={`tel:${e.number}`} className={row}>
             <span className="w-10 h-10 rounded-full bg-red-50 text-red-700 flex items-center justify-center"><Icon name="phone" size={18} /></span>
-            <span><span className="block text-base text-ink">Appeler {e.label}</span><span className="block text-sm text-ink-2">{e.number}</span></span>
+            <span><span className="block text-base text-ink">{t(e.label)}</span><span className="block text-sm text-ink-2">{e.number}</span></span>
           </a>
         ))}
       </motion.div>

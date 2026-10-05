@@ -1,10 +1,11 @@
 import Icon from './Icon';
 import { modeOf } from '../lib/modes';
+import { t } from '../i18n';
 
 // Repère OpenStreetMap le plus visible près d'un carrefour (où chercher le véhicule)
 const landmarkHint = (place) => {
   const lm = place?.landmarks?.[0];
-  return lm ? `Repère : ${lm.name} (${lm.kind_label}, ${lm.distance_m} m)` : null;
+  return lm ? `${t('Repère :')} ${lm.name} (${t(lm.kind_label)}, ${lm.distance_m} m)` : null;
 };
 
 const hhmm = (ts) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -58,7 +59,7 @@ export default function ItineraryTimeline({ trip }) {
       rows.push(
         <Row key={`w${i}`} shaded leftMuted left={`${leg.minutes} min`} line={<DottedLine />}>
           <p className="text-sm text-ink flex items-center gap-1.5">
-            <Icon name="walk" size={16} /> À pied · ~{leg.distanceM} m
+            <Icon name="walk" size={16} /> {t('À pied')} · ~{leg.distanceM} m
           </p>
         </Row>
       );
@@ -69,7 +70,7 @@ export default function ItineraryTimeline({ trip }) {
       rows.push(
         <Row key={`c${i}`} shaded leftMuted left={`${leg.minutes} min`} line={<DottedLine />}>
           <p className="text-sm text-ink flex items-center gap-1.5">
-            <Icon name="route" size={16} /> Changement · trouve le véhicule suivant au carrefour
+            <Icon name="route" size={16} /> {t('Changement · trouve le véhicule suivant au carrefour')}
           </p>
         </Row>
       );
@@ -81,18 +82,18 @@ export default function ItineraryTimeline({ trip }) {
       const m = modeOf(leg.transport);
       rows.push(
         <Row key={`r${i}`} leftMuted line={<SolidLine color={m.color} />}
-          left={<>{leg.minutes} min{leg.waitMin > 0 && <><br /><span className="text-ink-2">+ ~{leg.waitMin} attente</span></>}</>}>
+          left={<>{leg.minutes} min{leg.waitMin > 0 && <><br /><span className="text-ink-2">+ ~{leg.waitMin} {t('attente')}</span></>}</>}>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-sm font-semibold text-white" style={{ background: m.color }}>
-              <Icon name={m.icon} size={16} /> {m.label}
+              <Icon name={m.icon} size={16} /> {t(m.label)}
             </span>
             <span className="text-sm font-semibold text-ink">{leg.estimated ? '~' : ''}{fcfa(leg.price)}</span>
           </div>
           <p className="text-sm text-ink-2 mt-1.5">
-            {leg.transport === 'taxi_collectif' ? 'Dis au chauffeur : ' : ''}
+            {leg.transport === 'taxi_collectif' ? `${t('Dis au chauffeur :')} ` : ''}
             <span className="text-ink font-medium">{leg.announce}</span>
           </p>
-          {leg.estimated && <p className="text-xs text-ink-2 mt-1">Prix et durée estimés (hors réseau connu)</p>}
+          {leg.estimated && <p className="text-xs text-ink-2 mt-1">{t('Prix et durée estimés (hors réseau connu)')}</p>}
         </Row>
       );
     }

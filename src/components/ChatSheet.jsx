@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Icon from './Icon';
+import { t } from '../i18n';
 
 
 const time = (d) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -34,15 +35,15 @@ export default function ChatSheet({ me, title, messages, quickReplies, onSend, o
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center justify-between px-4 h-14 border-b border-ink-line flex-shrink-0">
           <h2 id="chat-title" className="text-lg font-bold text-ink truncate">{title}</h2>
-          <button onClick={onClose} aria-label="Fermer" className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-ink-2 active:bg-ink-fill">
+          <button onClick={onClose} aria-label={t('Fermer')} className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-ink-2 active:bg-ink-fill">
             <Icon name="x" size={20} />
           </button>
         </div>
 
-        <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" aria-live="polite" aria-label="Messages">
+        <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" aria-live="polite" aria-label={t('Messages')}>
           {messages.length === 0 && (
             <p className="text-sm text-ink-2 text-center my-auto">
-              Écris un message ou choisis une réponse rapide. Pour une urgence, appelle plutôt.
+              {t('Écris un message ou choisis une réponse rapide. Pour une urgence, appelle plutôt.')}
             </p>
           )}
           {messages.map(m => {
@@ -52,27 +53,27 @@ export default function ChatSheet({ me, title, messages, quickReplies, onSend, o
                 <span className={`px-3 py-2 rounded-2xl text-base leading-snug break-words ${mine ? 'bg-ink text-white rounded-br-md' : 'bg-ink-fill text-ink rounded-bl-md'}`}>
                   {m.body}
                 </span>
-                <span className="text-xs text-ink-3 mt-0.5 px-1">{m.pending ? 'Envoi…' : time(m.created_at)}</span>
+                <span className="text-xs text-ink-3 mt-0.5 px-1">{m.pending ? t('Envoi…') : time(m.created_at)}</span>
               </div>
             );
           })}
         </div>
 
         {closed ? (
-          <p className="text-sm text-ink-2 text-center py-4 border-t border-ink-line">La messagerie est fermée : la course est terminée.</p>
+          <p className="text-sm text-ink-2 text-center py-4 border-t border-ink-line">{t('La messagerie est fermée : la course est terminée.')}</p>
         ) : (
           <div className="border-t border-ink-line flex-shrink-0">
-            <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1" role="group" aria-label="Réponses rapides">
-              {quickReplies.map(q => (
+            <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1" role="group" aria-label={t('Réponses rapides')}>
+              {quickReplies.map(q => t(q)).map(q => (
                 <button key={q} onClick={() => send(q)}
                   className="h-9 px-3 rounded-full bg-ink-fill text-ink text-sm font-semibold whitespace-nowrap flex-shrink-0 active:bg-ink-line">{q}</button>
               ))}
             </div>
             <form onSubmit={e => { e.preventDefault(); send(text); }} className="flex items-center gap-2 px-4 py-3">
-              <input value={text} onChange={e => setText(e.target.value.slice(0, 300))} placeholder="Message"
-                aria-label="Ton message" enterKeyHint="send"
+              <input value={text} onChange={e => setText(e.target.value.slice(0, 300))} placeholder={t('Message')}
+                aria-label={t('Ton message')} enterKeyHint="send"
                 className="flex-1 h-12 bg-ink-fill rounded-full px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
-              <button type="submit" disabled={!text.trim()} aria-label="Envoyer"
+              <button type="submit" disabled={!text.trim()} aria-label={t('Envoyer')}
                 className="w-12 h-12 rounded-full bg-ink text-white flex items-center justify-center disabled:bg-ink-fill disabled:text-ink-3">
                 <Icon name="arrowUp" size={20} />
               </button>

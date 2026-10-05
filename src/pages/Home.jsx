@@ -36,6 +36,7 @@ import PickupSheet, { CenterPin } from '../components/PickupSheet';
 import SignalScreen   from '../components/SignalScreen';
 import ChatSheet from '../components/ChatSheet';
 import { PASSENGER_REPLIES } from '../lib/chat';
+import { t } from '../i18n';
 
 // Le serveur abandonne la recherche au bout de 2 min ; filet de sécurité si le réseau coupe
 const TAXI_SEARCH_TIMEOUT_MS = 150_000;
@@ -63,7 +64,7 @@ export default function Home() {
   const toastTimer = useRef(null);
 
   const showToast = useCallback((msg) => {
-    setToast(msg);
+    setToast(t(msg));
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(''), 3500);
   }, []);
@@ -162,15 +163,16 @@ export default function Home() {
     'ride:scheduled': ({ ride }) => {
       resetTaxi(); setSheetOpen(true);
       const at = new Date(ride.scheduled_at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-      showToast(`Course programmée ${at}. Retrouve-la dans Compte → Mes courses.`);
+      showToast(t('Course programmée {at}. Retrouve-la dans Compte → Mes courses.', { at }));
     },
     'ride:share_link':      ({ token }) => setShareUrl(`${window.location.origin}/suivi/${token}`),
-    'ride:cancel_ok':       ({ fee }) => { if (fee) showToast(`Course annulée : ${fee.toLocaleString('fr-FR')} F de frais seront ajoutés à ta prochaine course`); },
+    'ride:cancel_ok':       ({ fee }) => { if (fee) showToast(t('Course annulée : {n} F de frais seront ajoutés à ta prochaine course', { n: fee.toLocaleString('fr-FR') })); },
     // Le chauffeur t'a attendu plus de 5 min sans te voir
     'ride:cancelled':       ({ reason, fee }) => {
       resetTaxi(); setSheetOpen(true);
       showToast(reason === 'no_show'
-        ? `Ton chauffeur ne t'a pas trouvé et a clos la course${fee ? ` (frais de ${fee.toLocaleString('fr-FR')} F sur ta prochaine course)` : ''}.`
+        ? (fee ? t("Ton chauffeur ne t'a pas trouvé et a clos la course (frais de {n} F sur ta prochaine course).", { n: fee.toLocaleString('fr-FR') })
+          : t("Ton chauffeur ne t'a pas trouvé et a clos la course."))
         : 'La course a été annulée.');
     },
     'ride:error':           ({ message }) => { setRaising(false); if (['pickup', 'searching'].includes(taxiMode)) { resetTaxi(); setSheetOpen(true); } showToast(message); },
@@ -283,7 +285,7 @@ export default function Home() {
   // Renvoie le point « Ma position » pour que l'appelant puisse lancer la recherche aussitôt.
   // Le rattachement au carrefour le plus proche (et la marche) est fait par planTrip.
   const pickMyPosition = useCallback(() => {
-    if (!userPosition) { setSearchError('Position GPS non disponible. Active la localisation ou tape ton point de départ.'); return null; }
+    if (!userPosition) { setSearchError(t('Position GPS non disponible. Active la localisation ou tape ton point de départ.')); return null; }
     const node = { id: '_gps', name: 'Ma position', lat: userPosition.lat, lng: userPosition.lng };
     setFromText('Ma position'); setFromNode(node);
     setActiveInput('to'); setFromSugg([]); setSearchError('');
@@ -358,9 +360,9 @@ export default function Home() {
   // avant que l'état React ne soit à jour.
   const runSearch = useCallback((from = fromNode, to = toNode) => {
     setSearchError('');
-    if (!from || !to) { setSearchError('Choisis un départ et une destination'); return; }
+    if (!from || !to) { setSearchError(t('Choisis un départ et une destination')); return; }
     if (!searchFormSchema.safeParse({ fromNode: from, toNode: to }).success) {
-      setSearchError(from.id === to.id ? 'Le départ et la destination sont identiques' : 'Coordonnées manquantes, réessaie');
+      setSearchError(t(from.id === to.id ? 'Le départ et la destination sont identiques' : 'Coordonnées manquantes, réessaie'));
       return;
     }
     setSearchOpen(false); setSheetOpen(true); setSheetView('overview');
@@ -555,8 +557,8 @@ export default function Home() {
     if (!approaching || !taxiRide?.id) return;
     const sendPos = () => { const p = myPosRef.current; if (p) taxiSend('passenger:position', { ride_id: taxiRide.id, lat: p.lat, lng: p.lng }); };
     sendPos();
-    const t = setInterval(sendPos, 5000);
-    return () => clearInterval(t);
+    const timer = setInterval(sendPos, 5000);
+    return () => clearInterval(timer);
   }, [approaching, taxiRide?.id, taxiSend]);
 
   // Boussole (si le téléphone en a une) pour dire « à ta droite » plutôt que « vers l'est »
@@ -612,13 +614,13 @@ export default function Home() {
   // Partage façon Uber : chauffeur, plaque et destination
   const taxiShareText = () => {
     const d = taxiDriver;
-    const idLabel = d && (d.plate ? `plaque ${d.plate}` : d.visible_number ? `N° ${d.visible_number}` : '');
+    const idLabel = d && (d.plate ? t('plaque {p}', { p: d.plate }) : d.visible_number ? `N° ${d.visible_number}` : '');
     return [
-      'NawiyApp — Je suis en course',
-      d ? `Chauffeur : ${d.name} · ${[d.vehicle_model, d.vehicle_color, idLabel].filter(Boolean).join(' · ')}` : "En attente d'un chauffeur",
-      `Trajet : ${taxiRide?.from?.name || fromText} → ${taxiRide?.to?.name || toText}`,
+      t('NawiyApp — Je suis en course'),
+      d ? `${t('Chauffeur :')} ${d.name} · ${[d.vehicle_model, d.vehicle_color, idLabel].filter(Boolean).join(' · ')}` : t("En attente d'un chauffeur"),
+      `${t('Trajet :')} ${taxiRide?.from?.name || fromText} → ${taxiRide?.to?.name || toText}`,
       taxiEta != null && taxiMode === 'in_progress'
-        ? `Arrivée prévue vers ${new Date(Date.now() + taxiEta * 60000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : '',
+        ? t('Arrivée prévue vers {time}', { time: new Date(Date.now() + taxiEta * 60000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }) : '',
     ].filter(Boolean).join('\n');
   };
 
@@ -626,10 +628,10 @@ export default function Home() {
   const shareTaxi = async () => {
     const text = taxiShareText();
     if (navigator.share) {
-      try { await navigator.share({ title: 'Ma course NawiyApp', text, url: shareUrl || undefined }); return; }
+      try { await navigator.share({ title: t('Ma course NawiyApp'), text, url: shareUrl || undefined }); return; }
       catch (err) { if (err?.name === 'AbortError') return; }
     }
-    const message = [text, shareUrl && `Suivre en direct : ${shareUrl}`].filter(Boolean).join('\n');
+    const message = [text, shareUrl && `${t('Suivre en direct :')} ${shareUrl}`].filter(Boolean).join('\n');
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   };
 
@@ -649,11 +651,12 @@ export default function Home() {
     // Frais seulement pour les comptes, si le chauffeur attend depuis plus de 5 min
     const fee = isAuthenticated ? cancellationFee(taxiRide?.category, taxiRide?.arrived_at) : 0;
     setConfirm({
-      title: 'Annuler ta course ?',
+      title: t('Annuler ta course ?'),
       body: fee
-        ? `Ton chauffeur t'attend depuis plus de 5 min : l'annulation coûte ${fee.toLocaleString('fr-FR')} F, ajoutés à ta prochaine course.`
-        : taxiDriver ? `${taxiDriver.name} est déjà en route vers toi.` : 'Un chauffeur a déjà accepté ta course.',
-      confirmLabel: 'Oui, annuler la course',
+        ? t("Ton chauffeur t'attend depuis plus de 5 min : l'annulation coûte {n} F, ajoutés à ta prochaine course.", { n: fee.toLocaleString('fr-FR') })
+        : taxiDriver ? t('{name} est déjà en route vers toi.', { name: taxiDriver.name }) : t('Un chauffeur a déjà accepté ta course.'),
+      confirmLabel: t('Oui, annuler la course'),
+      cancelLabel: t('Non, garder'),
       onConfirm: run,
     });
   };
@@ -664,11 +667,11 @@ export default function Home() {
   useEffect(() => { cancelTaxiRef.current = cancelTaxi; });
   useEffect(() => {
     if (taxiMode !== 'searching' || scheduledSearch) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       cancelTaxiRef.current();
       showToast("Aucun chauffeur disponible pour l'instant. Réessaie dans quelques minutes.");
     }, TAXI_SEARCH_TIMEOUT_MS);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [taxiMode, scheduledSearch, showToast]);
 
   const clearRoute = () => {
