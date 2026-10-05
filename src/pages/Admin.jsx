@@ -6,6 +6,8 @@ import { sessionApi } from '../api/session.api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import AdminDrivers from '../components/AdminDrivers';
+import AdminOverview from '../components/AdminOverview';
+import AdminBalances from '../components/AdminBalances';
 
 const STATUS_STYLES = {
   pending:  'bg-yellow-100 text-yellow-700',
@@ -33,7 +35,7 @@ function AdminPanel({ user }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [tab, setTab]         = useState('drivers'); // drivers | routes | candidates | trips
+  const [tab, setTab]         = useState('overview'); // overview | drivers | balances | routes | candidates | trips
   const [selected, setSelected] = useState(null);
   const [fromPointId, setFromPointId] = useState('');
   const [toPointId, setToPointId]     = useState('');
@@ -104,9 +106,17 @@ function AdminPanel({ user }) {
 
         {/* Onglets */}
         <div className="flex gap-2 mb-5 border-b border-gray-200 overflow-x-auto overflow-y-hidden">
+          <button onClick={() => setTab('overview')}
+            className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px whitespace-nowrap ${tab === 'overview' ? 'border-nawiy-green text-nawiy-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            Supervision
+          </button>
           <button onClick={() => setTab('drivers')}
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px whitespace-nowrap ${tab === 'drivers' ? 'border-nawiy-green text-nawiy-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             Chauffeurs
+          </button>
+          <button onClick={() => setTab('balances')}
+            className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px whitespace-nowrap ${tab === 'balances' ? 'border-nawiy-green text-nawiy-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            Soldes
           </button>
           <button onClick={() => setTab('routes')}
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px ${tab === 'routes' ? 'border-nawiy-green text-nawiy-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
@@ -125,7 +135,9 @@ function AdminPanel({ user }) {
           </button>
         </div>
 
+        {tab === 'overview' && <AdminOverview onOpenDrivers={() => setTab('drivers')} />}
         {tab === 'drivers' && <AdminDrivers />}
+        {tab === 'balances' && <AdminBalances />}
 
         {/* ── Onglet trajets soumis ── */}
         {tab === 'routes' && <>

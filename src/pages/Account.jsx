@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { accountApi } from '../api/account.api';
 import Icon from '../components/Icon';
+import { prettyPhone } from '../lib/phone';
 
 function Row({ to, icon, label, hint }) {
   return (
@@ -34,7 +35,7 @@ export default function Account() {
             </span>
             <div className="min-w-0">
               <p className="text-lg font-semibold text-ink truncate">{user?.full_name || 'Mon compte'}</p>
-              <p className="text-sm text-ink-2 truncate">{user?.phone || user?.email}</p>
+              <p className="text-sm text-ink-2 truncate">{prettyPhone(user?.phone) || user?.email}</p>
             </div>
           </div>
         ) : (

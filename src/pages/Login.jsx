@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { otpApi } from '../api/auth.api';
 import Icon from '../components/Icon';
+import { prettyPhone } from '../lib/phone';
 
-const prettyPhone = (e164) => e164.replace(/^\+237(\d)(\d{2})(\d{2})(\d{2})(\d{2})$/, '+237 $1 $2 $3 $4 $5');
 const errMsg = (err, fallback) => err.response?.data?.error?.message || err.response?.data?.error || fallback;
 const inputCls = 'w-full h-12 border border-ink-line rounded-lg px-4 text-base text-ink focus:outline-none focus:border-ink';
 const primaryBtn = 'w-full h-12 bg-ink text-white text-base font-semibold rounded-lg active:bg-gray-800 disabled:bg-ink-fill disabled:text-ink-3';
