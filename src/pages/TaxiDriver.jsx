@@ -12,6 +12,8 @@ import Icon from '../components/Icon';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { CATEGORIES, FREE_WAIT_MIN } from '../lib/pricing';
 import DriverBalance from '../components/DriverBalance';
+import ChatSheet from '../components/ChatSheet';
+import { DRIVER_REPLIES } from '../lib/chat';
 import SignalScreen from '../components/SignalScreen';
 import PushPrompt from '../components/PushPrompt';
 import DriverDocuments from '../components/DriverDocuments';
@@ -92,7 +94,7 @@ function useWaitLeft(arrivedAt) {
   return Math.max(0, FREE_WAIT_MIN * 60 - Math.floor((now - new Date(arrivedAt).getTime()) / 1000));
 }
 
-function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete, onDriverCancel, onNoShow, onShowSignal }) {
+function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete, onDriverCancel, onNoShow, onShowSignal, onChat, unread }) {
   const [code, setCode] = useState('');
   const waitLeft = useWaitLeft(ride.status === 'accepted' && ride.arrived ? ride.arrived_at : null);
   const toPickup = ride.status === 'accepted';
@@ -132,10 +134,17 @@ function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete
           </div>
         )}
 
-        <a href={mapsLink(target)} target="_blank" rel="noreferrer"
-          className="h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg flex items-center justify-center gap-2 active:bg-ink-line">
-          <Icon name="navigation" size={18} /> Itinéraire
-        </a>
+        <div className="flex gap-2">
+          <a href={mapsLink(target)} target="_blank" rel="noreferrer"
+            className="flex-1 h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg flex items-center justify-center gap-2 active:bg-ink-line">
+            <Icon name="navigation" size={18} /> Itinéraire
+          </a>
+          <button onClick={onChat} aria-label={unread ? `Message, ${unread} non lu${unread > 1 ? 's' : ''}` : 'Message au passager'}
+            className="relative flex-1 h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg flex items-center justify-center gap-2 active:bg-ink-line">
+            <Icon name="message" size={18} /> Message
+            {unread > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1 rounded-full bg-red-600 text-white text-xs leading-6 font-bold" aria-hidden="true">{unread}</span>}
+          </button>
+        </div>
 
         {toPickup && !ride.arrived && (
           <button onClick={onArrived} className="h-14 bg-ink text-white text-lg font-semibold rounded-lg active:bg-gray-800">
@@ -233,6 +242,9 @@ export default function TaxiDriver() {
   const [passenger, setPassenger] = useState({});      // { distance_m, note, waving }
   const [signalOpen, setSignalOpen] = useState(false);
   const [balanceKey, setBalanceKey] = useState(0);   // recharge le solde après chaque course
+  const [chat, setChat] = useState({ open: false, unread: 0, messages: [] });
+  const chatOpenRef = useRef(false);
+  useEffect(() => { chatOpenRef.current = chat.open; }, [chat.open]);
   const wantOnline = useRef(false);
 
   const [showRegister, setShowRegister] = useState(false);
@@ -253,7 +265,16 @@ export default function TaxiDriver() {
     // Une nouvelle offre (passager qui augmente) remplace l'ancienne carte
     'ride:new':  (ride) => setRequests(prev => [ride, ...prev.filter(r => r.ride_id !== ride.ride_id)]),
     'ride:taken': ({ ride_id }) => setRequests(prev => prev.filter(r => r.ride_id !== ride_id)),
-    'ride:you_accepted': (ride) => { setActiveRide(ride); setRequests([]); setPassenger({}); },
+    'ride:you_accepted': (ride) => { setActiveRide(ride); setRequests([]); setPassenger({}); setChat({ open: false, unread: 0, messages: [] }); },
+    'chat:message': (m) => {
+      setChat(c => ({
+        ...c,
+        messages: [...c.messages.filter(x => !(m.client_id && x.client_id === m.client_id)), m],
+        unread: m.sender === 'passenger' && !chatOpenRef.current ? c.unread + 1 : c.unread,
+      }));
+      if (m.sender === 'passenger' && !chatOpenRef.current) navigator.vibrate?.(150);
+    },
+    'chat:history': ({ messages }) => setChat(c => ({ ...c, messages })),
     'ride:passenger_position': ({ distance_m }) => setPassenger(p => ({ ...p, distance_m })),
     'ride:passenger_note':     ({ note }) => setPassenger(p => ({ ...p, note })),
     'ride:passenger_waving':   () => {
@@ -261,7 +282,7 @@ export default function TaxiDriver() {
       setPassenger(p => ({ ...p, waving: true }));
       setTimeout(() => setPassenger(p => ({ ...p, waving: false })), 8000);
     },
-    'ride:current':      (ride) => setActiveRide(ride),
+    'ride:current':      (ride) => { setActiveRide(ride); send('chat:history', { ride_id: ride.ride_id }); },
     'ride:arrived_ok':   ({ arrived_at }) => setActiveRide(r => r && { ...r, arrived: true, arrived_at: arrived_at || new Date().toISOString() }),
     'ride:code_invalid': () => setCodeError(true),
     'ride:started_ok':   (ride) => { setCodeError(false); setActiveRide(ride); setSignalOpen(false); },
@@ -507,6 +528,8 @@ export default function TaxiDriver() {
               confirmLabel: 'Oui, terminer', cancelLabel: 'Pas encore',
               onConfirm: () => { setConfirm(null); send('ride:complete', { ride_id: activeRide.ride_id }); },
             })}
+            unread={chat.unread}
+            onChat={() => setChat(c => ({ ...c, open: true, unread: 0 }))}
             onNoShow={() => setConfirm({
               title: 'Passager absent ?', body: "La course sera close et des frais d'annulation facturés au passager s'il a un compte.",
               confirmLabel: 'Oui, il est absent', cancelLabel: 'Je patiente encore',
@@ -517,6 +540,18 @@ export default function TaxiDriver() {
               confirmLabel: 'Oui, rendre la course', cancelLabel: 'Non, je la fais',
               onConfirm: () => { setConfirm(null); send('ride:driver_cancel', { ride_id: activeRide.ride_id }); },
             })} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {chat.open && activeRide && (
+          <ChatSheet me="driver" title="Message au passager" messages={chat.messages} quickReplies={DRIVER_REPLIES}
+            onSend={(body) => {
+              const client_id = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+              setChat(c => ({ ...c, messages: [...c.messages, { client_id, sender: 'driver', body, pending: true }] }));
+              send('chat:send', { ride_id: activeRide.ride_id, body, client_id });
+            }}
+            onClose={() => setChat(c => ({ ...c, open: false }))} />
         )}
       </AnimatePresence>
 

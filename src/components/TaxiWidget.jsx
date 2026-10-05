@@ -90,12 +90,17 @@ function FindDriver({ signal, distance, direction, note, onSignal, onWave, onNot
   );
 }
 
-function Actions({ driver, onShare, onSafety }) {
+function Actions({ driver, onShare, onSafety, chat }) {
   const btn = 'flex-1 h-14 bg-ink-fill text-ink text-xs font-semibold rounded-lg flex flex-col items-center justify-center gap-1 active:bg-ink-line';
   return (
     <div className="flex gap-2">
       {driver.phone && <a href={`tel:${driver.phone.replace(/\s/g, '')}`} className={btn}><Icon name="phone" size={18} />Appeler</a>}
-      {driver.phone && <a href={`sms:${driver.phone.replace(/\s/g, '')}`} className={btn}><Icon name="message" size={18} />Message</a>}
+      {chat ? (
+        <button onClick={chat.open} className={`${btn} relative`} aria-label={chat.unread ? `Message, ${chat.unread} non lu${chat.unread > 1 ? 's' : ''}` : 'Message'}>
+          <Icon name="message" size={18} />Message
+          {chat.unread > 0 && <span className="absolute top-1.5 right-1/2 translate-x-5 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[11px] leading-5 font-bold" aria-hidden="true">{chat.unread}</span>}
+        </button>
+      ) : driver.phone && <a href={`sms:${driver.phone.replace(/\s/g, '')}`} className={btn}><Icon name="message" size={18} />Message</a>}
       <button onClick={onShare} className={btn}><Icon name="share" size={18} />Partager</button>
       <button onClick={onSafety} className={btn}><Icon name="shield" size={18} />Sécurité</button>
     </div>
@@ -178,7 +183,7 @@ export default function TaxiWidget({
           <DriverCard driver={taxiDriver} category={taxiRide?.category} />
           <FindDriver {...find} />
           <CodeBadge code={code} big={taxiMode === 'driver_arrived'} />
-          <Actions driver={taxiDriver} onShare={onShare} onSafety={onSafety} />
+          <Actions driver={taxiDriver} onShare={onShare} onSafety={onSafety} chat={find.chat} />
           <button onClick={onCancel} className="h-11 text-base font-semibold text-red-700 rounded-lg active:bg-red-50">
             Annuler la course
           </button>

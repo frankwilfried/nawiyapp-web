@@ -33,6 +33,8 @@ import SafetySheet    from '../components/SafetySheet';
 import RideComplete   from '../components/RideComplete';
 import PickupSheet, { CenterPin } from '../components/PickupSheet';
 import SignalScreen   from '../components/SignalScreen';
+import ChatSheet from '../components/ChatSheet';
+import { PASSENGER_REPLIES } from '../lib/chat';
 
 // Le serveur abandonne la recherche au bout de 2 min ; filet de sécurité si le réseau coupe
 const TAXI_SEARCH_TIMEOUT_MS = 150_000;
@@ -138,6 +140,15 @@ export default function Home() {
     'ride:payment':         (state) => setPaymentState(state),
     'ride:reassigning':     () => { setTaxiDriver(null); setDriverPos(null); setTaxiMode('searching'); showToast('Ton chauffeur a dû annuler. On t\'en cherche un autre.'); },
     'ride:no_driver':       () => { resetTaxi(); setSheetOpen(true); showToast('Aucun chauffeur disponible pour l\'instant. Réessaie dans quelques minutes.'); },
+    // Messagerie : l'accusé du serveur remplace le message « en cours d'envoi »
+    'chat:message': (m) => {
+      setChatMessages(list => [...list.filter(x => !(m.client_id && x.client_id === m.client_id)), m]);
+      if (m.sender === 'driver' && !chatOpenRef.current) {
+        setChatUnread(n => n + 1);
+        navigator.vibrate?.(150);
+      }
+    },
+    'chat:history': ({ messages }) => setChatMessages(messages),
     'ride:share_link':      ({ token }) => setShareUrl(`${window.location.origin}/suivi/${token}`),
     'ride:cancel_ok':       ({ fee }) => { if (fee) showToast(`Course annulée : ${fee.toLocaleString('fr-FR')} F de frais seront ajoutés à ta prochaine course`); },
     // Le chauffeur t'a attendu plus de 5 min sans te voir
@@ -149,7 +160,8 @@ export default function Home() {
     },
     'ride:error':           ({ message }) => { setRaising(false); if (['pickup', 'searching'].includes(taxiMode)) { resetTaxi(); setSheetOpen(true); } showToast(message); },
     // Reprise après une coupure réseau ou un rechargement de la page
-    'ride:state': ({ ride, driver }) => {
+    'ride:state': ({ ride, driver, messages }) => {
+      setChatMessages(messages || []);
       setTaxiRide(ride); setTaxiDriver(driver); setTaxiMode(modeFromRide(ride));
       setTaxiSignal(ride.signal || null); setPassengerNote(ride.passenger_note || '');
       if (driver?.lat != null) setDriverPos({ lat: driver.lat, lng: driver.lng });
@@ -487,6 +499,19 @@ export default function Home() {
     setTaxiNotified(null); setDriverPos(null); setPaymentState(null); setPickup(null);
     setTaxiDeclines(null); setRaising(false);
     setTaxiSignal(null); setPassengerNote(''); setSignalOpen(false); setShareUrl(null);
+    setChatMessages([]); setChatUnread(0); setChatOpen(false);
+  };
+
+  // ── Messagerie avec le chauffeur ──
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatOpenRef = useRef(false);
+  useEffect(() => { chatOpenRef.current = chatOpen; }, [chatOpen]);
+  const sendChat = (body) => {
+    const client_id = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    setChatMessages(list => [...list, { client_id, sender: 'passenger', body, pending: true }]);
+    taxiSend('chat:send', { ride_id: taxiRide?.id, body, client_id });
   };
 
   // Lien de suivi demandé dès qu'un chauffeur est attribué : le partage reste instantané
@@ -545,6 +570,7 @@ export default function Home() {
   };
 
   const taxiFind = {
+    chat: { unread: chatUnread, open: () => { setChatOpen(true); setChatUnread(0); } },
     signal: taxiSignal, distance: radar?.distance, direction: radar?.direction, note: passengerNote,
     onSignal: () => setSignalOpen(true),
     onWave: () => taxiRide?.id && taxiSend('ride:wave', { ride_id: taxiRide.id }),
@@ -817,6 +843,15 @@ export default function Home() {
         {paymentOpen && (
           <PaymentSheet methods={taxiEstimate?.payment_methods || [{ id: 'cash', label: 'Espèces', available: true }]}
             value={payment} onChange={setPayment} onClose={() => setPaymentOpen(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {chatOpen && taxiRide && (
+          <ChatSheet me="passenger" title={taxiDriver?.name ? `Message à ${taxiDriver.name.split(' ')[0]}` : 'Message au chauffeur'}
+            messages={chatMessages} quickReplies={PASSENGER_REPLIES} onSend={sendChat}
+            closed={!['driver_found', 'driver_arrived', 'in_progress'].includes(taxiMode)}
+            onClose={() => setChatOpen(false)} />
         )}
       </AnimatePresence>
 
