@@ -14,6 +14,7 @@ import { MODES } from '../lib/modes';
 import { priceFor, roadKm, offerBounds, cancellationFee } from '../lib/pricing';
 import { useAuthStore } from '../store/authStore';
 import { getTaxiEstimate } from '../api/taxi.api';
+import { logSearch } from '../lib/searchLog';
 import { distanceM, bearingDeg, relativeDirection, formatDistance } from '../lib/geo';
 import { useSearchHistory } from '../hooks/useSearchHistory';
 import { useMapData } from '../hooks/useMapData';
@@ -351,6 +352,7 @@ export default function Home() {
     setTaxiEstimate(null);
     getTaxiEstimate(from, to, selectedCity).then(e => { if (estimateToken.current === token) setTaxiEstimate(e); });
     const trip = planTrip(graph, from, to, { departAt: Date.now(), peak: isPeakHour() });
+    if (graph) logSearch(selectedCity, from, to, trip);
     if (trip) {
       setResult(trip);
       drawRoute(trip.waypoints, { walk: isWalkOnly(trip) });

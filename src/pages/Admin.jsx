@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminDrivers from '../components/AdminDrivers';
 import AdminOverview from '../components/AdminOverview';
 import AdminBalances from '../components/AdminBalances';
+import AdminNetwork from '../components/AdminNetwork';
 
 const STATUS_STYLES = {
   pending:  'bg-yellow-100 text-yellow-700',
@@ -118,6 +119,10 @@ function AdminPanel({ user }) {
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px whitespace-nowrap ${tab === 'balances' ? 'border-nawiy-green text-nawiy-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             Soldes
           </button>
+          <button onClick={() => setTab('network')}
+            className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px whitespace-nowrap ${tab === 'network' ? 'border-nawiy-green text-nawiy-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            Réseau
+          </button>
           <button onClick={() => setTab('routes')}
             className={`px-4 py-2 font-semibold text-sm border-b-2 transition -mb-px ${tab === 'routes' ? 'border-nawiy-green text-nawiy-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
             Trajets soumis
@@ -138,6 +143,7 @@ function AdminPanel({ user }) {
         {tab === 'overview' && <AdminOverview onOpenDrivers={() => setTab('drivers')} />}
         {tab === 'drivers' && <AdminDrivers />}
         {tab === 'balances' && <AdminBalances />}
+        {tab === 'network' && <AdminNetwork />}
 
         {/* ── Onglet trajets soumis ── */}
         {tab === 'routes' && <>
