@@ -77,6 +77,12 @@ function NetworkMap({ data, selectedId, onSelect, onMoved, focus }) {
       d.style.cssText = 'width:12px;height:12px;transform:rotate(45deg);background:#EA580C;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)';
       markers.current.push(new maplibregl.Marker({ element: d }).setLngLat([s.lng, s.lat]).addTo(m));
     }
+    for (const c of data.candidates || []) {
+      const d = document.createElement('div');
+      d.title = `Arrêt ${c.source === 'gps' ? 'détecté (GPS)' : 'proposé par un chauffeur'} : ${c.name}`;
+      d.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)';
+      markers.current.push(new maplibregl.Marker({ element: d }).setLngLat([c.lng, c.lat]).addTo(m));
+    }
     for (const p of data.points) {
       const selected = p.id === selectedId;
       const element = pointEl(p, selected);
@@ -215,6 +221,33 @@ function Priorities({ city, onFocus, onCreated }) {
   );
 }
 
+function CandidateRow({ c, onFocus, onDecide, busy }) {
+  const [name, setName] = useState(c.name);
+  const [type, setType] = useState('carrefour');
+  return (
+    <li className="bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2">
+      <button onClick={onFocus} className="text-left">
+        <span className="block text-sm text-gray-600">
+          {c.source === 'gps' ? 'Détecté dans les traces GPS' : 'Nommé par un chauffeur'} · vu {c.seen_count} fois
+          {c.drivers_count ? ` · ${c.drivers_count} chauffeurs` : ''}{c.avg_dwell_s ? ` · arrêt moyen ${c.avg_dwell_s} s` : ''}
+        </span>
+      </button>
+      <div className="flex flex-wrap gap-2">
+        <input value={name} onChange={e => setName(e.target.value)} maxLength={150} aria-label="Nom de l'arrêt"
+          className="flex-1 min-w-40 h-10 border border-gray-300 rounded-lg px-3 text-sm" />
+        <select value={type} onChange={e => setType(e.target.value)} aria-label="Type"
+          className="h-10 border border-gray-300 rounded-lg px-2 text-sm bg-white">
+          {Object.entries(TYPES).map(([id, l]) => <option key={id} value={id}>{l}</option>)}
+        </select>
+        <button onClick={() => onDecide(true, { name: name.trim(), type })} disabled={busy || !name.trim()}
+          className="h-10 px-3 rounded-lg bg-black text-white text-sm font-semibold disabled:opacity-50">Ajouter au réseau</button>
+        <button onClick={() => onDecide(false)} disabled={busy}
+          className="h-10 px-3 rounded-lg bg-gray-100 text-sm font-semibold disabled:opacity-50">Ignorer</button>
+      </div>
+    </li>
+  );
+}
+
 /** Onglet « Réseau » : carte d'édition, corrections OSM, priorités de collecte. */
 export default function AdminNetwork() {
   const qc = useQueryClient();
@@ -235,6 +268,15 @@ export default function AdminNetwork() {
     mutationFn: (refetch) => apiClient.post('/admin/network/suggestions/refresh', { city, refetch }).then(r => r.data),
     onSuccess: (r) => { setNotice(`${r.osm_places} lieux OSM comparés à ${r.points} points : ${r.created} nouvelle${r.created > 1 ? 's' : ''} correction${r.created > 1 ? 's' : ''}.`); reload(); qc.invalidateQueries({ queryKey: ['network-priorities', city] }); },
     onError: (e) => setNotice(errMsg(e)),
+  });
+  const mine = useMutation({
+    mutationFn: () => apiClient.post('/admin/network/stops/mine', { city }).then(r => r.data),
+    onSuccess: (r) => { setNotice(`${r.gps_points} points GPS analysés : ${r.likely} arrêts fréquents, ${r.created} nouveau${r.created > 1 ? 'x' : ''} à valider.`); reload(); setView('stops'); },
+    onError: (e) => setNotice(errMsg(e)),
+  });
+  const decideStop = useMutation({
+    mutationFn: ({ id, accept, body }) => apiClient.post(`/sessions/admin/candidates/${id}/${accept ? 'approve' : 'reject'}`, body || {}),
+    onSuccess: reload,
   });
   const decide = useMutation({
     mutationFn: ({ id, accept }) => apiClient.post(`/admin/network/suggestions/${id}/${accept ? 'accept' : 'reject'}`),
@@ -265,6 +307,10 @@ export default function AdminNetwork() {
         </button>
         <button onClick={() => refresh.mutate(true)} disabled={refresh.isPending} title="Télécharger à nouveau les lieux OpenStreetMap"
           className="h-10 px-3 rounded-lg bg-white border border-gray-300 text-sm font-semibold disabled:opacity-50">Actualiser OSM</button>
+        <button onClick={() => mine.mutate()} disabled={mine.isPending}
+          className="h-10 px-3 rounded-lg bg-white border border-gray-300 text-sm font-semibold disabled:opacity-50">
+          {mine.isPending ? 'Analyse des traces…' : 'Détecter les arrêts (GPS chauffeurs)'}
+        </button>
       </div>
       {notice && <p className="text-sm bg-gray-100 rounded-lg px-3 py-2" role="status">{notice}</p>}
 
@@ -273,6 +319,7 @@ export default function AdminNetwork() {
         onMoved={(id, lat, lng) => setMoved({ lat, lng })} />
       <p className="text-xs text-gray-500 -mt-2">
         Points : noir carrefour, vert gare, orange foncé marché, bleu université, gris inactif · losange orange : position proposée par OSM ·
+        rond violet : arrêt détecté ·
         © OpenStreetMap contributors
       </p>
 
@@ -282,7 +329,7 @@ export default function AdminNetwork() {
       )}
 
       <div className="flex gap-2 border-b border-gray-200">
-        {[['fixes', `Corrections proposées (${data.suggestions.length})`], ['priorities', 'Priorités de collecte']].map(([id, label]) => (
+        {[['fixes', `Corrections OSM (${data.suggestions.length})`], ['stops', `Arrêts détectés (${data.candidates?.length || 0})`], ['priorities', 'Priorités de collecte']].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)}
             className={`px-3 py-2 text-sm font-semibold border-b-2 -mb-px ${view === id ? 'border-black text-black' : 'border-transparent text-gray-500'}`}>{label}</button>
         ))}
@@ -306,6 +353,19 @@ export default function AdminNetwork() {
                       className="h-9 px-3 rounded-lg bg-gray-100 text-sm font-semibold disabled:opacity-50">Ignorer</button>
                   </div>
                 </li>
+              ))}
+            </ul>
+          )
+      )}
+      {view === 'stops' && (
+        !data.candidates?.length
+          ? <p className="text-sm text-gray-500">Aucun arrêt à valider. Les traces GPS des sessions de conduite sont analysées chaque nuit, ou avec « Détecter les arrêts ».</p>
+          : (
+            <ul className="flex flex-col gap-2">
+              {data.candidates.map(c => (
+                <CandidateRow key={c.id} c={c} busy={decideStop.isPending}
+                  onFocus={() => setFocus({ lat: c.lat, lng: c.lng })}
+                  onDecide={(accept, body) => decideStop.mutate({ id: c.id, accept, body })} />
               ))}
             </ul>
           )

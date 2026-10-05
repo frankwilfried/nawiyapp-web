@@ -62,8 +62,9 @@ export default function DriveSession() {
       gpsRef.current = navigator.geolocation.watchPosition(
         pos => {
           posRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          // Heure du relevé : permet de mesurer la durée des arrêts (les points partent par lots de 10 s)
           gpsBatchRef.current.push({ lat: pos.coords.latitude, lng: pos.coords.longitude,
-            speed_kmh: pos.coords.speed != null ? pos.coords.speed * 3.6 : null });
+            speed_kmh: pos.coords.speed != null ? pos.coords.speed * 3.6 : null, t: pos.timestamp });
         },
         () => {}, { enableHighAccuracy: true, maximumAge: 0 }
       );
@@ -188,6 +189,11 @@ export default function DriveSession() {
           </div>
         )}
         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+        <p className="text-xs text-gray-500 text-center px-2">
+          Pendant la session, ton trajet GPS est enregistré pour repérer les arrêts et les durées du réseau.
+          Il n'est jamais montré aux passagers et est supprimé après 6 mois.
+          {' '}<a href="/confidentialite" className="underline">En savoir plus</a>
+        </p>
         <button onClick={startSession} disabled={!isAuthenticated}
           className="w-full bg-nawiy-green text-white rounded-2xl py-5 font-bold text-xl shadow-lg hover:bg-nawiy-dark transition disabled:opacity-40">
           🚕 Démarrer

@@ -40,6 +40,7 @@ export const TERMS = {
       "Le chauffeur reste indépendant : il choisit quand se connecter et quelles courses accepter. Il est seul responsable de son véhicule, de son assurance, du respect du code de la route et du port du casque (moto, pour lui et le passager).",
       "NawiyApp perçoit une commission de 10 % du prix de chaque course réalisée via l'application. [Modalités de règlement de la commission : à définir.]",
       "Le chauffeur s'engage à ne pas utiliser les coordonnées des passagers en dehors des courses.",
+      "Pendant qu'il est en ligne ou en session de conduite, la position GPS du chauffeur est enregistrée. Elle sert au service (attribution et suivi des courses) et à améliorer le réseau du transport informel : repérer automatiquement les arrêts, mesurer les durées des trajets. Ces traces ne sont jamais montrées aux passagers ni vendues, et sont supprimées après 6 mois ; seuls les résultats (arrêts, durées moyennes) sont conservés.",
     ]],
     ['Responsabilité', [
       "NawiyApp fait de son mieux pour que le service soit disponible, sans pouvoir le garantir en permanence (réseau, GPS, panne).",
@@ -63,13 +64,13 @@ export const PRIVACY = {
     ['Données collectées', [
       "Compte : nom ou prénom, email, téléphone, mot de passe (stocké chiffré, jamais en clair).",
       "Course : points de départ et d'arrivée, position pendant la recherche et la course, prix, moyen de paiement, note et commentaire, message au chauffeur.",
-      "Chauffeurs : pièces d'identité et du véhicule (CNI, permis, carte grise), photos, plaque ou numéro visible, position quand ils sont en ligne, courses et gains.",
+      "Chauffeurs : pièces d'identité et du véhicule (CNI, permis, carte grise), photos, plaque ou numéro visible, position GPS quand ils sont en ligne ou en session de conduite, courses et gains.",
       "Technique : type d'appareil, journaux d'erreurs, abonnement aux notifications si tu les actives.",
     ]],
     ['Pourquoi', [
       "Réaliser les courses : trouver un chauffeur proche, afficher sa position, calculer le prix.",
       "Sécurité : vérifier l'identité des chauffeurs, traiter les signalements, prévenir la fraude.",
-      "Améliorer les itinéraires du transport informel (données de trajets agrégées).",
+      "Améliorer les itinéraires du transport informel : les traces GPS des chauffeurs permettent de repérer les arrêts et de mesurer les durées (données agrégées, jamais publiées trajet par trajet). Les passagers ne sont pas suivis à cette fin.",
       "Respecter nos obligations légales (comptabilité, réquisitions des autorités).",
     ]],
     ['Qui voit quoi', [
@@ -82,6 +83,7 @@ export const PRIVACY = {
       "Compte : tant qu'il est actif, puis [X] mois après sa suppression.",
       "Courses : [X] ans (preuve et comptabilité). Positions GPS détaillées : [X] mois, puis anonymisées.",
       "Pièces des chauffeurs : pendant l'activité du chauffeur, puis [X] mois. Pièces refusées : supprimées sous [X] jours.",
+      "Traces GPS des chauffeurs : 6 mois, puis supprimées automatiquement (seuls les arrêts et durées moyennes déduits sont gardés).",
     ]],
     ['Tes droits', [
       "Tu peux demander l'accès à tes données, leur correction ou leur suppression, et t'opposer à certains usages.",
