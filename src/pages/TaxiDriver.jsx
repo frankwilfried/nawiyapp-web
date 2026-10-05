@@ -54,6 +54,11 @@ function RequestCard({ ride, onAccept, onDecline, onExpire, onCounter }) {
             Offre du passager · prix conseillé {fcfa(ride.recommended_price)}
           </p>
         )}
+        {ride.scheduled_at && (
+          <p className="text-sm font-semibold text-amber-800 mt-0.5">
+            Course programmée · prise en charge à {new Date(ride.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
         {(ride.passenger_name || ride.passenger_rating) && (
           <p className="text-sm text-ink mt-0.5 flex items-center gap-1">
             {ride.passenger_name || 'Passager'}

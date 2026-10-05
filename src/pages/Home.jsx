@@ -159,6 +159,11 @@ export default function Home() {
       }
     },
     'chat:history': ({ messages }) => setChatMessages(messages),
+    'ride:scheduled': ({ ride }) => {
+      resetTaxi(); setSheetOpen(true);
+      const at = new Date(ride.scheduled_at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+      showToast(`Course programmée ${at}. Retrouve-la dans Compte → Mes courses.`);
+    },
     'ride:share_link':      ({ token }) => setShareUrl(`${window.location.origin}/suivi/${token}`),
     'ride:cancel_ok':       ({ fee }) => { if (fee) showToast(`Course annulée : ${fee.toLocaleString('fr-FR')} F de frais seront ajoutés à ta prochaine course`); },
     // Le chauffeur t'a attendu plus de 5 min sans te voir
@@ -483,16 +488,19 @@ export default function Home() {
   }, [taxiMode, describePickup, pricing]);
 
   // 2. Confirmation : la demande part au serveur, qui calcule le prix définitif (identique à l'affiché)
-  const confirmPickup = () => {
+  const confirmPickup = (scheduledAt = null) => {
     const payload = {
       from_lat: pickup.lat, from_lng: pickup.lng, from_name: pickup.label,
       to_lat: toNode.lat, to_lng: toNode.lng, to_name: toText,
       city_slug: selectedCity, category: pickup.category, payment_method: payment.method,
       offer_price: pickup.price,
       ...(payment.method !== 'cash' && { payer_phone: payment.phone }),
+      ...(scheduledAt && { scheduled_at: scheduledAt }),
     };
     const parsed = taxiRequestSchema.safeParse(payload);
     if (!parsed.success) { showToast(parsed.error.issues[0]?.message || 'Impossible de commander pour ce trajet'); return; }
+    // Course programmée : réservée, le passager revient à la carte (confirmation par « ride:scheduled »)
+    if (scheduledAt) { taxiSend('ride:request', parsed.data); return; }
     setTaxiNotified(null); setPaymentState(null);
     setTaxiDeclines(null);
     setTaxiRide({ price: pickup.price, recommended_price: pickup.recommended, category: pickup.category, payment_method: payment.method, from: { lat: pickup.lat, lng: pickup.lng, name: pickup.label }, to: { lat: toNode.lat, lng: toNode.lng, name: toText } });
@@ -646,17 +654,18 @@ export default function Home() {
     });
   };
 
-  // Abandon automatique si aucun chauffeur n'accepte
+  // Abandon automatique si aucun chauffeur n'accepte (sauf course programmée : le serveur cherche jusqu'à l'heure prévue)
+  const scheduledSearch = !!taxiRide?.scheduled_at;
   const cancelTaxiRef = useRef(cancelTaxi);
   useEffect(() => { cancelTaxiRef.current = cancelTaxi; });
   useEffect(() => {
-    if (taxiMode !== 'searching') return;
+    if (taxiMode !== 'searching' || scheduledSearch) return;
     const t = setTimeout(() => {
       cancelTaxiRef.current();
       showToast("Aucun chauffeur disponible pour l'instant. Réessaie dans quelques minutes.");
     }, TAXI_SEARCH_TIMEOUT_MS);
     return () => clearTimeout(t);
-  }, [taxiMode, showToast]);
+  }, [taxiMode, scheduledSearch, showToast]);
 
   const clearRoute = () => {
     const clear = () => {
@@ -849,7 +858,7 @@ export default function Home() {
       <AnimatePresence>
         {taxiMode === 'pickup' && pickup && (
           <PickupSheet label={pickup.label} hint={pickup.hint} category={pickup.category} price={pickup.price}
-            onConfirm={confirmPickup} onBack={backFromPickup} />
+            canSchedule={isAuthenticated} onConfirm={confirmPickup} onBack={backFromPickup} />
         )}
       </AnimatePresence>
 

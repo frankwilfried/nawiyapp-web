@@ -1,5 +1,5 @@
 import { Navigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { accountApi } from '../api/account.api';
 import { CATEGORIES } from '../lib/pricing';
@@ -24,7 +24,12 @@ function Line({ label, value, strong }) {
 export default function Receipt() {
   const { id } = useParams();
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  const qc = useQueryClient();
   const { data: r, isLoading, isError } = useQuery({ queryKey: ['receipt', id], queryFn: () => accountApi.receipt(id), enabled: isAuthenticated });
+  const cancel = useMutation({
+    mutationFn: () => accountApi.cancelScheduled(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['receipt', id] }); qc.invalidateQueries({ queryKey: ['my-rides'] }); },
+  });
   if (!isAuthenticated) return <Navigate to={`/login?next=/courses/${id}`} replace />;
 
   return (
@@ -59,6 +64,20 @@ export default function Receipt() {
                 {r.completed_at && <p className="text-sm text-ink-2">{time(r.completed_at)}</p>}
               </div>
             </div>
+
+            {r.status === 'scheduled' && (
+              <div className="mt-4 rounded-lg bg-amber-100 text-amber-900 px-3 py-3">
+                <p className="text-sm font-semibold">
+                  Programmée pour {new Date(r.scheduled_at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <p className="text-sm">On cherche ton chauffeur 15 min avant et on te prévient. Annulation gratuite jusque-là.</p>
+                <button onClick={() => cancel.mutate()} disabled={cancel.isPending}
+                  className="mt-2 h-10 px-4 rounded-lg bg-white text-red-700 text-sm font-semibold disabled:opacity-50 print:hidden">
+                  {cancel.isPending ? 'Annulation…' : 'Annuler la course'}
+                </button>
+                {cancel.isError && <p className="text-sm text-red-700 mt-1" role="alert">{cancel.error.response?.data?.error || 'Annulation impossible'}</p>}
+              </div>
+            )}
 
             <section className="mt-6" aria-label="Détail du prix">
               {r.status === 'cancelled' ? (

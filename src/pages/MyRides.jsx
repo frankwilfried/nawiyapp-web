@@ -43,9 +43,9 @@ export default function MyRides() {
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-base font-semibold text-ink truncate">{r.to_name}</span>
-                  <span className="block text-sm text-ink-2">{rideDate(r.created_at)} · {CATEGORIES[r.category]?.label.replace('Nawiy ', '')}</span>
+                  <span className="block text-sm text-ink-2">{rideDate(r.scheduled_at && r.status === 'scheduled' ? r.scheduled_at : r.created_at)} · {CATEGORIES[r.category]?.label.replace('Nawiy ', '')}</span>
                   {r.status !== 'completed' && (
-                    <span className={`inline-block text-xs font-semibold rounded px-1.5 py-0.5 mt-1 ${r.status === 'cancelled' ? 'bg-ink-fill text-ink-2' : 'bg-nawiy-light text-nawiy-600'}`}>
+                    <span className={`inline-block text-xs font-semibold rounded px-1.5 py-0.5 mt-1 ${r.status === 'cancelled' ? 'bg-ink-fill text-ink-2' : r.status === 'scheduled' ? 'bg-amber-100 text-amber-900' : 'bg-nawiy-light text-nawiy-600'}`}>
                       {RIDE_STATUS[r.status] || r.status}
                     </span>
                   )}
