@@ -254,9 +254,12 @@ export default function Home() {
     setSuggLoading(true);
     clearTimeout(suggestDebounce.current);
     suggestDebounce.current = setTimeout(() => {
-      const q = val.toLowerCase();
-      const local = nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 3);
-      if (!window.google?.maps?.places) { setter(local); setSuggLoading(false); return; }
+      // Sans tenir compte des accents ; hors ligne, seuls les lieux du réseau (gardés sur le téléphone)
+      const fold = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const q = fold(val);
+      const matches = nodes.filter(n => fold(n.name).includes(q));
+      const local = matches.slice(0, 3);
+      if (!navigator.onLine || !window.google?.maps?.places) { setter(matches.slice(0, 8)); setSuggLoading(false); return; }
       const svc = new window.google.maps.places.AutocompleteService();
       const opts = { input: val, componentRestrictions: { country: 'cm' }, language: 'fr' };
       if (userPosition) { opts.location = new window.google.maps.LatLng(userPosition.lat, userPosition.lng); opts.radius = 15000; }
@@ -465,6 +468,7 @@ export default function Home() {
   // 1. « Commander » : on fait d'abord confirmer le point exact de prise en charge
   const orderTaxi = (category, offer) => {
     if (!fromNode || !toNode) return;
+    if (!navigator.onLine) { showToast("Pas de connexion : la course à la demande a besoin d'internet. L'itinéraire en transport informel reste disponible."); return; }
     if (!taxiConnected) { showToast('Service taxi injoignable pour l\'instant'); return; }
     const method = taxiEstimate?.payment_methods?.find(m => m.id === payment.method);
     if (method && !method.available) { setPaymentOpen(true); return; }

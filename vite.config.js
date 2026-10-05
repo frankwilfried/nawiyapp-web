@@ -18,7 +18,9 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'map-tiles',
-              expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              // Les zones déjà affichées restent visibles hors ligne pendant 30 jours
+              expiration: { maxEntries: 2000, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           {

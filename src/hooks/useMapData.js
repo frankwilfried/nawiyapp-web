@@ -4,15 +4,15 @@ import { buildGraph, STATIC_FOCAL_POINTS, STATIC_ROUTES } from '../lib/staticDat
 // VITE_API_URL se termine déjà par /api/v1 : on le retire pour ne pas l'avoir en double
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/api\/v1\/?$/, '');
 const CACHE_KEY  = 'nawiy_graph_v3'; // v3 : repères OSM + coordonnées numériques
-const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24h
+const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24h : au-delà on rafraîchit, mais on garde l'ancien hors ligne
+const CITIES = ['douala', 'yaounde'];
 
 function loadCache(citySlug) {
   try {
     const raw = localStorage.getItem(`${CACHE_KEY}_${citySlug}`);
     if (!raw) return null;
     const { data, ts } = JSON.parse(raw);
-    if (Date.now() - ts > CACHE_TTL) return null;
-    return data;
+    return { data, fresh: Date.now() - ts <= CACHE_TTL };
   } catch {
     return null;
   }
@@ -60,10 +60,11 @@ export function useMapData(citySlug) {
     // Vérifier le cache localStorage en premier
     const cached = loadCache(citySlug);
     if (cached) {
-      setGraph(cached);
-      setNodes(cached.nodes);
+      setGraph(cached.data);
+      setNodes(cached.data.nodes);
       setSource('cache');
     }
+    if (!navigator.onLine) return;   // hors ligne : on garde le cache (même ancien) ou les données embarquées
 
     // Puis essayer l'API en arrière-plan
     setLoading(true);
@@ -75,6 +76,11 @@ export function useMapData(citySlug) {
         setSource('api');
       }
     }).finally(() => setLoading(false));
+
+    // L'autre ville aussi, pour pouvoir s'en servir hors ligne en voyage
+    for (const other of CITIES.filter(c => c !== citySlug)) {
+      if (!loadCache(other)?.fresh) fetchFromApi(other).then(d => { if (d?.nodes?.length) saveCache(other, d); });
+    }
   }, [citySlug]);
 
   return { graph, nodes, source, loading };

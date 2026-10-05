@@ -15,6 +15,7 @@ import Receipt          from './pages/Receipt';
 import EmergencyContacts from './pages/EmergencyContacts';
 import Track            from './pages/Track';
 import BottomNav        from './components/BottomNav';
+import OfflineBanner    from './components/OfflineBanner';
 
 const BOTTOM_NAV_PATHS = ['/', '/driver', '/compte'];
 
@@ -43,6 +44,7 @@ function Layout() {
         <Route path="/confidentialite" element={<Legal doc="privacy" />} />
       </Routes>
       {showNav && <BottomNav />}
+      <OfflineBanner />
     </>
   );
 }

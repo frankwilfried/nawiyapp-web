@@ -19,11 +19,13 @@ export function useGooglePlaces(userPosition, nodes = []) {
     setSuggLoading(true);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const q = val.toLowerCase();
-      const local = nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 3);
+      const fold = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const q = fold(val);
+      const matches = nodes.filter(n => fold(n.name).includes(q));
+      const local = matches.slice(0, 3);
 
-      if (!window.google?.maps?.places) {
-        setter(local);
+      if (!navigator.onLine || !window.google?.maps?.places) {
+        setter(matches.slice(0, 8));
         setSuggLoading(false);
         return;
       }
