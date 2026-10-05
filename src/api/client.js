@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getFreshToken } from '../store/authStore';
+import { getFreshToken, useAuthStore } from '../store/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -24,6 +24,10 @@ client.interceptors.response.use(
         original.headers.Authorization = `Bearer ${token}`;
         return client(original);
       }
+    }
+    // Session terminée (jeton absent ou refusé) : l'écran repasse en « non connecté » au lieu d'afficher une erreur
+    if (error.response?.status === 401 && !localStorage.getItem('nawiy_refresh') && useAuthStore.getState().isAuthenticated) {
+      useAuthStore.getState().logout();
     }
     return Promise.reject(error);
   }
