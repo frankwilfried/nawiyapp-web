@@ -5,6 +5,7 @@ const TABS = [
   { path: '/',            icon: 'map',   label: 'Carte'       },
   { path: '/record-trip', icon: 'route', label: 'Enregistrer' },
   { path: '/driver',      icon: 'taxi',  label: 'Chauffeur'   },
+  { path: '/compte',      icon: 'users', label: 'Compte'      },
 ];
 
 // Barre de navigation façon Material 3 / Google Maps : pastille sous l'icône active

@@ -16,7 +16,7 @@ function PaymentStatus({ method, state }) {
 }
 
 // Fin de course façon Uber : montant, paiement, note avec étiquettes, pourboire
-export default function RideComplete({ price, paymentMethod, paymentState, driver, onSubmit, onSkip }) {
+export default function RideComplete({ price, feeIncluded = 0, paymentMethod, paymentState, driver, onSubmit, onSkip }) {
   const [score, setScore] = useState(0);
   const [tags, setTags]   = useState([]);
   const [tip, setTip]     = useState(0);
@@ -32,6 +32,7 @@ export default function RideComplete({ price, paymentMethod, paymentState, drive
         <div className="text-4xl font-bold text-ink mt-3 flex items-center justify-center gap-2">
           {price?.toLocaleString('fr-FR')} <span className="text-lg">FCFA</span>
         </div>
+        {feeIncluded > 0 && <p className="text-sm text-ink-2 mt-1">dont {feeIncluded.toLocaleString('fr-FR')} F de frais d'annulation d'une course précédente</p>}
         <div className="mt-2 flex items-center justify-center gap-2"><PaymentIcon method={paymentMethod} size={18} /><PaymentStatus method={paymentMethod} state={paymentState} /></div>
 
         <div className="border-t border-ink-line mt-6 pt-5">

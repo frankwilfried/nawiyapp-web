@@ -10,7 +10,8 @@ import { useTaxiSocket } from '../hooks/useTaxiSocket';
 import apiClient from '../api/client';
 import Icon from '../components/Icon';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { CATEGORIES } from '../lib/pricing';
+import { CATEGORIES, FREE_WAIT_MIN } from '../lib/pricing';
+import DriverBalance from '../components/DriverBalance';
 import SignalScreen from '../components/SignalScreen';
 import PushPrompt from '../components/PushPrompt';
 import DriverDocuments from '../components/DriverDocuments';
@@ -43,6 +44,15 @@ function RequestCard({ ride, onAccept, onDecline, onExpire }) {
             Offre du passager · prix conseillé {fcfa(ride.recommended_price)}
           </p>
         )}
+        {(ride.passenger_name || ride.passenger_rating) && (
+          <p className="text-sm text-ink mt-0.5 flex items-center gap-1">
+            {ride.passenger_name || 'Passager'}
+            {ride.passenger_rating && <><Icon name="star" size={14} filled /> {String(ride.passenger_rating).replace('.', ',')}</>}
+          </p>
+        )}
+        {ride.fee_included > 0 && (
+          <p className="text-sm text-ink-2">+ {fcfa(ride.fee_included)} de frais d'annulation à encaisser</p>
+        )}
         <div className="text-sm text-ink-2 mt-0.5">
           À {ride.pickup_eta_min} min ({String(ride.pickup_distance_km).replace('.', ',')} km) · course {String(ride.distance_km).replace('.', ',')} km
         </div>
@@ -70,8 +80,21 @@ function RequestCard({ ride, onAccept, onDecline, onExpire }) {
   );
 }
 
-function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete, onDriverCancel, onShowSignal }) {
+// Attente au point de prise en charge : « passager absent » possible après FREE_WAIT_MIN minutes
+function useWaitLeft(arrivedAt) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!arrivedAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [arrivedAt]);
+  if (!arrivedAt) return null;
+  return Math.max(0, FREE_WAIT_MIN * 60 - Math.floor((now - new Date(arrivedAt).getTime()) / 1000));
+}
+
+function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete, onDriverCancel, onNoShow, onShowSignal }) {
   const [code, setCode] = useState('');
+  const waitLeft = useWaitLeft(ride.status === 'accepted' && ride.arrived ? ride.arrived_at : null);
   const toPickup = ride.status === 'accepted';
   const target = toPickup ? ride.from : ride.to;
   const note = passenger.note || ride.passenger_note;
@@ -84,7 +107,7 @@ function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete
         <h1 className="text-2xl font-bold mt-1 leading-tight">{target.name}</h1>
         <div className="flex items-center gap-3 mt-2 text-sm text-white/80">
           <span className="inline-flex items-center gap-1"><Icon name={CATEGORY_ICONS[ride.category]} size={16} /> {CATEGORIES[ride.category]?.label}</span>
-          <span>·</span><span>{fcfa(ride.price)}</span><span>·</span><span>{PAY_LABELS[ride.payment_method]}</span>
+          <span>·</span><span>{fcfa(ride.price + (ride.fee_included || 0))}</span><span>·</span><span>{PAY_LABELS[ride.payment_method]}</span>
         </div>
       </div>
 
@@ -136,6 +159,18 @@ function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete
           </form>
         )}
 
+        {toPickup && ride.arrived && waitLeft != null && (
+          waitLeft > 0 ? (
+            <p className="text-sm text-ink-2 text-center" role="timer">
+              Passager absent ? Tu pourras le signaler dans {Math.floor(waitLeft / 60)}:{String(waitLeft % 60).padStart(2, '0')}
+            </p>
+          ) : (
+            <button onClick={onNoShow} className="h-12 bg-ink-fill text-ink text-base font-semibold rounded-lg active:bg-ink-line">
+              Passager absent
+            </button>
+          )
+        )}
+
         {!toPickup && (
           <button onClick={onComplete} className="h-14 bg-ink text-white text-lg font-semibold rounded-lg active:bg-gray-800">
             Terminer la course
@@ -149,6 +184,37 @@ function ActiveRide({ ride, codeError, passenger, onArrived, onStart, onComplete
         )}
       </div>
     </motion.div>
+  );
+}
+
+const PASSENGER_TAGS = ['Ponctuel', 'Poli', 'Bien indiqué', 'En retard', 'Impoli'];
+
+function RatePassenger({ onRate }) {
+  const [score, setScore] = useState(0);
+  const [tags, setTags] = useState([]);
+  return (
+    <div className="w-full max-w-xs mt-6">
+      <p className="text-base font-semibold text-ink">Note ton passager</p>
+      <div className="flex justify-center gap-1 mt-2" role="radiogroup" aria-label="Note du passager">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} role="radio" aria-checked={score === n} aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
+            onClick={() => setScore(n)} className="w-11 h-11 flex items-center justify-center text-ink">
+            <Icon name="star" size={30} filled={n <= score} />
+          </button>
+        ))}
+      </div>
+      {score > 0 && (
+        <div className="flex flex-wrap justify-center gap-2 mt-3">
+          {PASSENGER_TAGS.map(t => (
+            <button key={t} aria-pressed={tags.includes(t)} onClick={() => setTags(x => x.includes(t) ? x.filter(y => y !== t) : [...x, t])}
+              className={`h-9 px-3 rounded-full text-sm font-semibold ${tags.includes(t) ? 'bg-ink text-white' : 'bg-ink-fill text-ink'}`}>{t}</button>
+          ))}
+        </div>
+      )}
+      {score > 0 && (
+        <button onClick={() => onRate(score, tags)} className="w-full h-12 mt-4 bg-ink text-white rounded-lg font-semibold">Envoyer la note</button>
+      )}
+    </div>
   );
 }
 
@@ -166,6 +232,7 @@ export default function TaxiDriver() {
   const [stats, setStats]       = useState(null);
   const [passenger, setPassenger] = useState({});      // { distance_m, note, waving }
   const [signalOpen, setSignalOpen] = useState(false);
+  const [balanceKey, setBalanceKey] = useState(0);   // recharge le solde après chaque course
   const wantOnline = useRef(false);
 
   const [showRegister, setShowRegister] = useState(false);
@@ -195,12 +262,21 @@ export default function TaxiDriver() {
       setTimeout(() => setPassenger(p => ({ ...p, waving: false })), 8000);
     },
     'ride:current':      (ride) => setActiveRide(ride),
-    'ride:arrived_ok':   () => setActiveRide(r => r && { ...r, arrived: true }),
+    'ride:arrived_ok':   ({ arrived_at }) => setActiveRide(r => r && { ...r, arrived: true, arrived_at: arrived_at || new Date().toISOString() }),
     'ride:code_invalid': () => setCodeError(true),
     'ride:started_ok':   (ride) => { setCodeError(false); setActiveRide(ride); setSignalOpen(false); },
-    'ride:completed_ok': (data) => { setActiveRide(null); setSummary(data); loadStats(); },
+    'ride:completed_ok': (data) => { setActiveRide(null); setSummary(data); loadStats(); setBalanceKey(k => k + 1); },
+    'ride:no_show_ok':   ({ fee }) => {
+      setActiveRide(null);
+      showToast(fee ? `Course close : ${fcfa(fee)} de frais te seront crédités quand le passager les paiera` : 'Course close, passager absent');
+    },
+    'ride:passenger_rated': () => setSummary(s => s && { ...s, rated: true }),
+    'driver:blocked': ({ message }) => { wantOnline.current = false; setIsOnline(false); showToast(message); setBalanceKey(k => k + 1); },
     'ride:driver_cancel_ok': () => { setActiveRide(null); showToast('Course rendue, elle est proposée à un autre chauffeur'); },
-    'ride:cancelled':    () => { setActiveRide(null); showToast('Le passager a annulé la course'); },
+    'ride:cancelled':    ({ fee }) => {
+      setActiveRide(null);
+      showToast(fee ? `Le passager a annulé : ${fcfa(fee)} de frais te seront crédités` : 'Le passager a annulé la course');
+    },
     'ride:tip':          ({ tip }) => showToast(`Pourboire reçu : ${fcfa(tip)}`),
     'error':             ({ message }) => showToast(message),
   });
@@ -394,6 +470,7 @@ export default function TaxiDriver() {
         )}
 
         {profile && !profile.is_approved && <DriverDocuments />}
+        {profile?.is_approved && <DriverBalance refreshKey={balanceKey} />}
 
         {isOnline && (
           <section aria-labelledby="req-title" aria-live="polite">
@@ -430,6 +507,11 @@ export default function TaxiDriver() {
               confirmLabel: 'Oui, terminer', cancelLabel: 'Pas encore',
               onConfirm: () => { setConfirm(null); send('ride:complete', { ride_id: activeRide.ride_id }); },
             })}
+            onNoShow={() => setConfirm({
+              title: 'Passager absent ?', body: "La course sera close et des frais d'annulation facturés au passager s'il a un compte.",
+              confirmLabel: 'Oui, il est absent', cancelLabel: 'Je patiente encore',
+              onConfirm: () => { setConfirm(null); send('ride:no_show', { ride_id: activeRide.ride_id }); },
+            })}
             onDriverCancel={() => setConfirm({
               title: 'Rendre la course ?', body: 'Elle sera proposée à un autre chauffeur. Trop d\'annulations peuvent te pénaliser.',
               confirmLabel: 'Oui, rendre la course', cancelLabel: 'Non, je la fais',
@@ -457,8 +539,18 @@ export default function TaxiDriver() {
             ) : (
               <p className="text-base text-ink-2 mt-2">Payé par {PAY_LABELS[summary.payment_method]} — ne demande pas d'espèces</p>
             )}
-            <div className="text-4xl font-bold text-ink mt-2">{fcfa(summary.final_price)}</div>
-            <button onClick={() => setSummary(null)} className="w-full max-w-xs h-12 mt-8 bg-ink text-white rounded-lg font-semibold">OK</button>
+            <div className="text-4xl font-bold text-ink mt-2">{fcfa(summary.total ?? summary.final_price)}</div>
+            {summary.fee_included > 0 && (
+              <p className="text-sm text-ink-2 mt-1">dont {fcfa(summary.fee_included)} de frais d'annulation (à reverser à NawiyApp)</p>
+            )}
+            {summary.commission > 0 && <p className="text-sm text-ink-2 mt-1">Commission NawiyApp : {fcfa(summary.commission)}</p>}
+            {summary.passenger_rateable && !summary.rated && (
+              <RatePassenger onRate={(score, tags) => send('ride:rate_passenger', { ride_id: summary.ride_id, score, tags })} />
+            )}
+            {summary.rated && <p className="text-sm text-nawiy-600 font-semibold mt-4">Merci pour ta note</p>}
+            <button onClick={() => setSummary(null)} className={`w-full max-w-xs h-12 mt-6 rounded-lg font-semibold ${summary.passenger_rateable && !summary.rated ? 'bg-ink-fill text-ink' : 'bg-ink text-white'}`}>
+              {summary.passenger_rateable && !summary.rated ? 'Plus tard' : 'OK'}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

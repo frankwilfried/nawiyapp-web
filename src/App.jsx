@@ -9,9 +9,14 @@ import RecordRoute      from './pages/RecordRoute';
 import DriveSession     from './pages/DriveSession';
 import PassengerRecord  from './pages/PassengerRecord';
 import Legal            from './pages/Legal';
+import Account          from './pages/Account';
+import MyRides          from './pages/MyRides';
+import Receipt          from './pages/Receipt';
+import EmergencyContacts from './pages/EmergencyContacts';
+import Track            from './pages/Track';
 import BottomNav        from './components/BottomNav';
 
-const BOTTOM_NAV_PATHS = ['/', '/driver'];
+const BOTTOM_NAV_PATHS = ['/', '/driver', '/compte'];
 
 function Layout() {
   const { pathname } = useLocation();
@@ -29,6 +34,11 @@ function Layout() {
         <Route path="/record-route"  element={<RecordRoute />} />
         <Route path="/drive"         element={<DriveSession />} />
         <Route path="/record-trip"   element={<PassengerRecord />} />
+        <Route path="/compte"        element={<Account />} />
+        <Route path="/compte/urgence" element={<EmergencyContacts />} />
+        <Route path="/courses"       element={<MyRides />} />
+        <Route path="/courses/:id"   element={<Receipt />} />
+        <Route path="/suivi/:token"  element={<Track />} />
         <Route path="/conditions"    element={<Legal doc="terms" />} />
         <Route path="/confidentialite" element={<Legal doc="privacy" />} />
       </Routes>

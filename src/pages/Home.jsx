@@ -11,7 +11,8 @@ import { getRoadGeometry, getRouteWithSteps, findNearestNode } from '../lib/rout
 import { isPeakHour, applyPeakMultiplier } from '../lib/geocoder';
 import { planTrip, haversineKm } from '../lib/itinerary';
 import { MODES } from '../lib/modes';
-import { priceFor, roadKm, offerBounds } from '../lib/pricing';
+import { priceFor, roadKm, offerBounds, cancellationFee } from '../lib/pricing';
+import { useAuthStore } from '../store/authStore';
 import { getTaxiEstimate } from '../api/taxi.api';
 import { distanceM, bearingDeg, relativeDirection, formatDistance } from '../lib/geo';
 import { useSearchHistory } from '../hooks/useSearchHistory';
@@ -117,6 +118,7 @@ export default function Home() {
     : ride.status === 'in_progress' ? 'in_progress'
     : ride.arrived ? 'driver_arrived' : 'driver_found';
 
+  const isAuthenticated = useAuthStore(st => st.isAuthenticated);
   const { send: taxiSend, connected: taxiConnected } = useTaxiPassenger({
     'ride:created':  ({ ride }) => { setTaxiRide(ride); setTaxiMode('searching'); },
     'ride:notified': ({ drivers_notified }) => setTaxiNotified(drivers_notified),
@@ -130,13 +132,21 @@ export default function Home() {
       setTaxiRide(r => r && { ...r, price: data.final_price ?? r.price });
     },
     'ride:driver_position': ({ lat, lng, eta_min }) => { setDriverPos({ lat, lng }); if (eta_min != null) setTaxiEta(eta_min); },
-    'ride:driver_arrived':  () => setTaxiMode('driver_arrived'),
+    'ride:driver_arrived':  () => { setTaxiMode('driver_arrived'); setTaxiRide(r => r && { ...r, arrived_at: r.arrived_at || new Date().toISOString() }); },
     'ride:started':         ({ eta_min }) => { setTaxiEta(eta_min ?? null); setTaxiMode('in_progress'); setSignalOpen(false); },
-    'ride:completed':       ({ final_price }) => { setTaxiRide(r => r && { ...r, price: final_price }); setTaxiMode('completed'); setSheetOpen(false); },
+    'ride:completed':       ({ final_price, fee_included }) => { setTaxiRide(r => r && { ...r, price: final_price, fee_included: fee_included || 0 }); setTaxiMode('completed'); setSheetOpen(false); },
     'ride:payment':         (state) => setPaymentState(state),
     'ride:reassigning':     () => { setTaxiDriver(null); setDriverPos(null); setTaxiMode('searching'); showToast('Ton chauffeur a dû annuler. On t\'en cherche un autre.'); },
     'ride:no_driver':       () => { resetTaxi(); setSheetOpen(true); showToast('Aucun chauffeur disponible pour l\'instant. Réessaie dans quelques minutes.'); },
-    'ride:cancel_ok':       () => {},
+    'ride:share_link':      ({ token }) => setShareUrl(`${window.location.origin}/suivi/${token}`),
+    'ride:cancel_ok':       ({ fee }) => { if (fee) showToast(`Course annulée : ${fee.toLocaleString('fr-FR')} F de frais seront ajoutés à ta prochaine course`); },
+    // Le chauffeur t'a attendu plus de 5 min sans te voir
+    'ride:cancelled':       ({ reason, fee }) => {
+      resetTaxi(); setSheetOpen(true);
+      showToast(reason === 'no_show'
+        ? `Ton chauffeur ne t'a pas trouvé et a clos la course${fee ? ` (frais de ${fee.toLocaleString('fr-FR')} F sur ta prochaine course)` : ''}.`
+        : 'La course a été annulée.');
+    },
     'ride:error':           ({ message }) => { setRaising(false); if (['pickup', 'searching'].includes(taxiMode)) { resetTaxi(); setSheetOpen(true); } showToast(message); },
     // Reprise après une coupure réseau ou un rechargement de la page
     'ride:state': ({ ride, driver }) => {
@@ -476,8 +486,16 @@ export default function Home() {
     setTaxiMode('idle'); setTaxiRide(null); setTaxiDriver(null); setTaxiEta(null);
     setTaxiNotified(null); setDriverPos(null); setPaymentState(null); setPickup(null);
     setTaxiDeclines(null); setRaising(false);
-    setTaxiSignal(null); setPassengerNote(''); setSignalOpen(false);
+    setTaxiSignal(null); setPassengerNote(''); setSignalOpen(false); setShareUrl(null);
   };
+
+  // Lien de suivi demandé dès qu'un chauffeur est attribué : le partage reste instantané
+  const [shareUrl, setShareUrl] = useState(null);
+  useEffect(() => {
+    if (taxiRide?.id && !shareUrl && ['driver_found', 'driver_arrived', 'in_progress'].includes(taxiMode)) {
+      taxiSend('ride:share', { ride_id: taxiRide.id });
+    }
+  }, [taxiRide?.id, taxiMode, shareUrl, taxiSend]);
 
   // ── Retrouver son chauffeur ───────────────────────────────────────
   const approaching = ['driver_found', 'driver_arrived'].includes(taxiMode);
@@ -540,16 +558,27 @@ export default function Home() {
   };
 
   // Partage façon Uber : chauffeur, plaque et destination
-  const shareTaxi = () => {
+  const taxiShareText = () => {
     const d = taxiDriver;
-    const lines = [
-      '🚕 *NawiyApp* — Je suis en taxi',
-      d ? `Chauffeur : ${d.name} · ${[d.vehicle_model, d.vehicle_color].filter(Boolean).join(' ')} · plaque *${d.plate}*` : 'En attente d\'un chauffeur',
+    const idLabel = d && (d.plate ? `plaque ${d.plate}` : d.visible_number ? `N° ${d.visible_number}` : '');
+    return [
+      'NawiyApp — Je suis en course',
+      d ? `Chauffeur : ${d.name} · ${[d.vehicle_model, d.vehicle_color, idLabel].filter(Boolean).join(' · ')}` : "En attente d'un chauffeur",
       `Trajet : ${taxiRide?.from?.name || fromText} → ${taxiRide?.to?.name || toText}`,
       taxiEta != null && taxiMode === 'in_progress'
         ? `Arrivée prévue vers ${new Date(Date.now() + taxiEta * 60000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : '',
-    ].filter(Boolean);
-    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+    ].filter(Boolean).join('\n');
+  };
+
+  // Partage façon Uber : lien de suivi en direct + chauffeur et plaque
+  const shareTaxi = async () => {
+    const text = taxiShareText();
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Ma course NawiyApp', text, url: shareUrl || undefined }); return; }
+      catch (err) { if (err?.name === 'AbortError') return; }
+    }
+    const message = [text, shareUrl && `Suivre en direct : ${shareUrl}`].filter(Boolean).join('\n');
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   };
 
   // Fin de course : note envoyée (ou reportée), puis retour à la carte
@@ -565,9 +594,13 @@ export default function Home() {
   const askCancelRide = (after) => {
     const run = () => { cancelTaxi(); after?.(); setConfirm(null); };
     if (!RIDE_ENGAGED.includes(taxiMode)) { run(); return; }
+    // Frais seulement pour les comptes, si le chauffeur attend depuis plus de 5 min
+    const fee = isAuthenticated ? cancellationFee(taxiRide?.category, taxiRide?.arrived_at) : 0;
     setConfirm({
       title: 'Annuler ta course ?',
-      body: taxiDriver ? `${taxiDriver.name} est déjà en route vers toi.` : 'Un chauffeur a déjà accepté ta course.',
+      body: fee
+        ? `Ton chauffeur t'attend depuis plus de 5 min : l'annulation coûte ${fee.toLocaleString('fr-FR')} F, ajoutés à ta prochaine course.`
+        : taxiDriver ? `${taxiDriver.name} est déjà en route vers toi.` : 'Un chauffeur a déjà accepté ta course.',
       confirmLabel: 'Oui, annuler la course',
       onConfirm: run,
     });
@@ -788,12 +821,12 @@ export default function Home() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {safetyOpen && <SafetySheet onShare={shareTaxi} onClose={() => setSafetyOpen(false)} />}
+        {safetyOpen && <SafetySheet shareText={taxiShareText()} shareUrl={shareUrl} onClose={() => setSafetyOpen(false)} />}
       </AnimatePresence>
 
       <AnimatePresence>
         {taxiMode === 'completed' && (
-          <RideComplete price={taxiRide?.price} paymentMethod={taxiRide?.payment_method || 'cash'}
+          <RideComplete price={(taxiRide?.price || 0) + (taxiRide?.fee_included || 0)} feeIncluded={taxiRide?.fee_included || 0} paymentMethod={taxiRide?.payment_method || 'cash'}
             paymentState={paymentState} driver={taxiDriver}
             onSubmit={(rating) => finishRide(rating)} onSkip={() => finishRide(null)} />
         )}
